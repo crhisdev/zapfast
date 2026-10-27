@@ -2556,6 +2556,16 @@ impl App {
     }
 
     /// Resolves an address-book, push, phone-number, or fallback name.
+    /// How many people posted a status not yet seen here, for the rail.
+    pub fn unseen_status_authors(&self) -> usize {
+        self.statuses
+            .iter()
+            .filter(|status| !status.from_me && !self.statuses_seen.contains(&status.id))
+            .map(|status| status.sender.as_str())
+            .collect::<HashSet<_>>()
+            .len()
+    }
+
     pub fn display_name(&self, id: &str) -> String {
         self.display_name_or(id, None)
     }
@@ -3278,6 +3288,10 @@ impl App {
                 self.call_log = entries;
                 self.call_log_loaded = true;
             }
+            Event::Statuses(statuses) => {
+                self.statuses = statuses;
+                self.statuses_loaded = true;
+            }
             Event::Labels(labels) => {
                 self.labels = labels;
                 self.prune_labels();
@@ -3620,6 +3634,13 @@ impl App {
             }
             Event::MessageUpdated(message) => {
                 let message = *message;
+                if message.chat == crate::model::STATUS_CHAT {
+                    // A status's download finished: the Status page holds it.
+                    if let Some(status) = self.statuses.iter_mut().find(|s| s.id == message.id) {
+                        *status = message;
+                    }
+                    return;
+                }
                 // The starred panel holds its own copy. An edit has to
                 // replace that row, or the open list keeps the old text.
                 let in_starred = self.starred.iter().any(|entry| {
@@ -5144,6 +5165,21 @@ impl App {
         card: Option<usize>,
         result: Result<PathBuf, String>,
     ) {
+        if chat == crate::model::STATUS_CHAT
+            && let Some(media) = self
+                .statuses
+                .iter_mut()
+                .find(|status| status.id == id)
+                .and_then(|status| status.content.media_mut())
+        {
+            match &result {
+                Ok(path) => {
+                    media.path = Some(path.clone());
+                    media.state = MediaState::Idle;
+                }
+                Err(error) => media.state = MediaState::Failed(download_notice(error.clone())),
+            }
+        }
         // The info panel's listing keeps its own copy of the message, so a
         // picture without a preview stops being blank once its file is there.
         if let Ok(path) = &result
@@ -6424,6 +6460,13 @@ impl App {
                 }
                 // The Calls page reads the account's calls as it opens, and
                 // opens on the call history rather than the new-call list.
+                if page == Page::Status {
+                    self.backend.send(Command::LoadStatuses);
+                    if self.page != Page::Status {
+                        self.status_open = None;
+                    }
+                    self.show_starred = false;
+                }
                 if page == Page::Calls {
                     self.backend.send(Command::LoadCallLog);
                     if self.page != Page::Calls {
@@ -6508,6 +6551,12 @@ impl App {
             Action::ShowNewCall(open) => {
                 self.new_call = open;
                 self.new_call_search.clear();
+            }
+            Action::ViewStatus(open) => {
+                if let Some((_, id)) = &open {
+                    self.statuses_seen.insert(id.clone());
+                }
+                self.status_open = open;
             }
             Action::NavigateBack => self.navigate_back(ctx),
             Action::NavigateForward => self.navigate_forward(ctx),
@@ -6807,6 +6856,15 @@ impl App {
                             .insert(message.clone(), MediaState::Downloading);
                         return;
                     }
+                    media.state = MediaState::Downloading;
+                }
+                if let Some(media) = self
+                    .statuses
+                    .iter_mut()
+                    .filter(|status| status.chat == chat)
+                    .find(|status| status.id == message)
+                    .and_then(|status| status.content.media_mut())
+                {
                     media.state = MediaState::Downloading;
                 }
                 self.viewer_media_state

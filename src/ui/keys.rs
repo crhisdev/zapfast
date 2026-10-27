@@ -141,13 +141,14 @@ pub fn handle(app: &mut App, ctx: &egui::Context) {
                 Action::FocusMessages,
             );
         }
-        // The rail's Chats and Calls, by the digit's place on the keyboard:
+        // The rail's Chats, Calls and Status, by the digit's place on the keyboard:
         // with Shift held, layouts report the digits as their symbols.
         // Ctrl+1..9 without Shift open chats by their place in the list.
         if app.is_linked() {
             match take_destination(input) {
                 Some(1) => actions.extend(super::rail::Destination::Chats.actions(app)),
                 Some(2) => actions.extend(super::rail::Destination::Calls.actions(app)),
+                Some(4) => actions.extend(super::rail::Destination::Status.actions(app)),
                 _ => {}
             }
         }
@@ -293,7 +294,9 @@ pub fn handle(app: &mut App, ctx: &egui::Context) {
             // A narrow window shows the picked call's chat over the history:
             // Escape goes back to it, as the chat's Back does.
             actions.push(Action::CloseChat);
-        } else if app.page == Page::Settings || app.page == Page::Calls {
+        } else if app.page == Page::Status && app.status_open.is_some() {
+            actions.push(Action::ViewStatus(None));
+        } else if matches!(app.page, Page::Settings | Page::Calls | Page::Status) {
             actions.push(Action::Open(Page::Chats));
         } else if search_focused || !app.search.is_empty() {
             if !app.search.is_empty() {
@@ -451,8 +454,8 @@ fn take_chat_number(input: &mut egui::InputState) -> Option<usize> {
     number
 }
 
-/// Takes Ctrl+Shift+1 or Ctrl+Shift+2 (Cmd on macOS), the rail's Chats and
-/// Calls, and says which. It goes by the key's place on the keyboard: with
+/// Takes Ctrl+Shift+1, 2 or 4 (Cmd on macOS), the rail's Chats, Calls and
+/// Status, and says which. It goes by the key's place on the keyboard: with
 /// Shift held, each layout reports the digit as a symbol of its own.
 fn take_destination(input: &mut egui::InputState) -> Option<u8> {
     let mut destination = None;
@@ -470,6 +473,7 @@ fn take_destination(input: &mut egui::InputState) -> Option<u8> {
             destination = match physical_key.unwrap_or(*key) {
                 Key::Num1 => Some(1),
                 Key::Num2 => Some(2),
+                Key::Num4 => Some(4),
                 _ => None,
             };
             return destination.is_none();
@@ -835,6 +839,7 @@ pub const SHORTCUTS: &[(&str, &str)] = &[
     ("Ctrl+1..9", "Open a chat by its position in the chat list"),
     ("Ctrl+Shift+1", "Chats"),
     ("Ctrl+Shift+2", "Calls"),
+    ("Ctrl+Shift+4", "Status"),
     ("↑", "Edit the previous message (when the input is empty)"),
     ("Enter", "Send (Shift+Enter for a new line)"),
     (

@@ -3826,6 +3826,50 @@ msgstr "Reproduzida"
 msgid "not sent"
 msgstr "Enter envia"
 
+#: src/ui/status.rs
+msgid "Status"
+msgstr "Status"
+
+#: src/ui/status.rs
+msgid "My status"
+msgstr "Meu status"
+
+#: src/ui/status.rs
+msgid "Recent updates"
+msgstr "Atualizações recentes"
+
+#: src/ui/status.rs
+msgid "Viewed updates"
+msgstr "Atualizações vistas"
+
+#: src/ui/status.rs
+msgid "No status updates"
+msgstr "Nenhuma atualização de status"
+
+#: src/ui/status.rs
+msgid "Statuses your contacts post show here for 24 hours."
+msgstr "Os status que seus contatos publicam aparecem aqui por 24 horas."
+
+#: src/ui/status.rs
+msgid "Choose a contact to see their status updates."
+msgstr "Escolha um contato para ver suas atualizações de status."
+
+#: src/ui/status.rs
+msgid "Previous status"
+msgstr "Status anterior"
+
+#: src/ui/status.rs
+msgid "Next status"
+msgstr "Próximo status"
+
+#: src/ui/status.rs
+msgid "Play video"
+msgstr "Reproduzir vídeo"
+
+#: src/ui/status.rs
+msgid "This status can't be shown here. See it on your phone."
+msgstr "Este status não pode ser exibido aqui. Veja no seu celular."
+
 #~ msgid "Back to the chats"
 #~ msgstr "Voltar para as conversas"
 

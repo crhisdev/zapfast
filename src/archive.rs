@@ -28,6 +28,7 @@ mod reconcile;
 #[cfg(test)]
 mod reconcile_tests;
 mod stars;
+mod statuses;
 mod stickers;
 pub use polls::PollVote;
 pub use stars::Starred;
@@ -1509,6 +1510,7 @@ impl Archive {
             "SELECT {SEARCH_COLUMNS}
              FROM messages
              WHERE json_valid(content) AND {SEARCHED_TEXT} LIKE ?1 ESCAPE '\\'
+               AND chat <> 'status@broadcast'
              ORDER BY timestamp DESC, COALESCE(history_order, 9223372036854775807) DESC, rowid DESC
              LIMIT ?2"
         );

@@ -482,6 +482,8 @@ pub enum Command {
     RefreshCallDevices,
     /// Reads the account's call entries for the Calls page.
     LoadCallLog,
+    /// Reads the statuses still up for the Status page.
+    LoadStatuses,
     /// Sends a played receipt for a voice message.
     MarkPlayed {
         chat: ChatId,
@@ -1361,6 +1363,8 @@ pub enum Event {
     CallDevices(Box<crate::calls::DeviceList>),
     /// The account's call entries, newest first, for the Calls page.
     CallLog(Vec<Message>),
+    /// The statuses still up, oldest first, for the Status page.
+    Statuses(Vec<Message>),
     /// One video frame for the call screen: our own preview, the peer's picture, or both.
     CallVideo {
         local: Option<Arc<egui::ColorImage>>,

@@ -31,6 +31,7 @@ pub enum Stop {
     /// list is hidden, and keeps Hide the chat list's place in the order.
     Chats,
     Calls,
+    Status,
     Starred,
     Archived,
     Locked,

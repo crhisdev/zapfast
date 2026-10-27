@@ -1,5 +1,5 @@
 //! The navigation rail on the left of the chat list, as WhatsApp's desktop
-//! clients have it: Chats and Calls at the top; Starred, Archived and Locked
+//! clients have it: Chats, Calls and Status at the top; Starred, Archived and Locked
 //! chats (while there are any), Settings and our own avatar (the account
 //! switcher) at the bottom. While the chat list is hidden, the chats'
 //! avatars fill the rail between the two, so every chat is still one click
@@ -64,6 +64,7 @@ pub fn lights_overhang(ctx: &egui::Context) -> f32 {
 pub enum Destination {
     Chats,
     Calls,
+    Status,
     Starred,
     Archived,
     Locked,
@@ -77,6 +78,7 @@ impl Destination {
         match self {
             Self::Chats => chats && !app.show_archived && !app.locked_folder_open(),
             Self::Calls => app.page == Page::Calls,
+            Self::Status => app.page == Page::Status,
             Self::Starred => app.page == Page::Chats && app.show_starred,
             Self::Archived => chats && app.show_archived,
             Self::Locked => chats && app.locked_folder_open(),
@@ -119,6 +121,11 @@ impl Destination {
             Self::Calls => {
                 if app.page != Page::Calls {
                     actions.push(Action::Open(Page::Calls));
+                }
+            }
+            Self::Status => {
+                if app.page != Page::Status {
+                    actions.push(Action::Open(Page::Status));
                 }
             }
             Self::Starred => {
@@ -187,7 +194,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, hidden: bool) {
         .filter(|destination| destination.offered(app))
         .collect();
         let foot = bottom.len() as f32 * (PLATE + GAP) + GAP + AVATAR + GAP;
-        let minimum = 2.0 * CELL
+        let minimum = 3.0 * CELL
             + foot
             + if hidden {
                 CELL + GAP + MIN_AVATARS
@@ -204,11 +211,11 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, hidden: bool) {
                 // the content keeps its minimum height and scrolls instead
                 // of leaving the bottom buttons beyond the window.
                 ui.set_height(height);
-                for destination in [Destination::Chats, Destination::Calls] {
+                for destination in [Destination::Chats, Destination::Calls, Destination::Status] {
                     destination_button(app, ui, &palette, destination, CELL);
                 }
                 if hidden {
-                    // A cell of its own under Calls: nothing above it moves
+                    // A cell of its own under Status: nothing above it moves
                     // when the list comes and goes.
                     show_list_button(app, ui, &palette);
                     ui.add_space(GAP / 2.0);
@@ -303,6 +310,18 @@ fn destination_button(
                 super::keys::label("Ctrl+Shift+2")
             ),
         ),
+        Destination::Status => {
+            badge = app.unseen_status_authors() as u32;
+            (
+                Icon::Status,
+                Stop::Status,
+                format!(
+                    "{} ({})",
+                    gettext(app.locale, "Status"),
+                    super::keys::label("Ctrl+Shift+4")
+                ),
+            )
+        }
         Destination::Starred => (
             Icon::Star,
             Stop::Starred,
