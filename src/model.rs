@@ -997,6 +997,8 @@ pub enum InteractiveAction {
     Reply,
     Copy(String),
     Select(Vec<InteractiveOption>),
+    /// Opens a WhatsApp Flow, a form from the business.
+    Flow,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -2314,6 +2316,12 @@ pub enum Dialog {
         message: String,
         button: usize,
     },
+    /// A WhatsApp Flow opened from a message button.
+    Flow {
+        chat: ChatId,
+        message: String,
+        button: usize,
+    },
     /// Previews a group invite link before joining.
     JoinGroup,
     /// Confirms setting aside an archive whose key is gone.
@@ -2580,6 +2588,18 @@ pub enum Action {
         message: String,
         button: usize,
         choice: Option<usize>,
+    },
+    OpenFlow {
+        chat: ChatId,
+        message: String,
+        button: usize,
+    },
+    /// A flow screen's action: a data exchange with the business, or with
+    /// `complete` the flow's final answer.
+    FlowAction {
+        screen: String,
+        payload: serde_json::Value,
+        complete: bool,
     },
     CreatePoll {
         chat: ChatId,

@@ -47,6 +47,8 @@ mod download_folders;
 mod early_events;
 use early_events::WaitingReaction;
 mod favorite_chats;
+mod flows;
+pub use flows::{Session as FlowSession, Step as FlowStep};
 mod group_admin;
 mod interactive;
 mod link_watch;
@@ -930,6 +932,7 @@ pub async fn run(
         late_older: VecDeque::new(),
         older_ids_match: false,
         interactive_sending: HashMap::new(),
+        flows: HashMap::new(),
         awaiting_ack: HashMap::new(),
         receipts_watch: None,
         receipts_pruned: Instant::now(),
@@ -1238,6 +1241,8 @@ struct Worker {
     poll_history: poll_history::Requests,
     poll_sending: HashSet<(ChatId, String)>,
     interactive_sending: HashMap<(ChatId, String), String>,
+    /// Open WhatsApp Flows by chat and message, with their secrets.
+    flows: HashMap<(ChatId, String), flows::Session>,
     /// Messages we sent that WhatsApp has not acknowledged yet, by id, with
     /// their chat: the first ack's server time replaces their local stamp.
     awaiting_ack: HashMap<String, ChatId>,
@@ -6439,6 +6444,7 @@ impl Worker {
         let destination = match &command {
             Command::SendText { chat, .. }
             | Command::ReplyInteractive { chat, .. }
+            | Command::FlowAction { chat, .. }
             | Command::SendVoice { chat, .. }
             | Command::SendFiles { chat, .. }
             | Command::SendImage { chat, .. }
@@ -6546,6 +6552,29 @@ impl Worker {
             } => {
                 self.reply_interactive(chat, message, button, choice);
             }
+            Command::OpenFlow {
+                chat,
+                message,
+                button,
+            } => self.open_flow(chat, message, button),
+            Command::FlowAction {
+                chat,
+                message,
+                screen,
+                payload,
+                complete,
+            } => self.flow_action(chat, message, screen, payload, complete),
+            Command::CloseFlow { chat, message } => self.close_flow(chat, message),
+            Command::FlowOpened {
+                chat,
+                message,
+                result,
+            } => self.flow_opened(chat, message, result),
+            Command::FlowStepped {
+                chat,
+                message,
+                result,
+            } => self.flow_stepped(chat, message, result),
             Command::Forward {
                 from_chat,
                 messages,
@@ -18077,6 +18106,7 @@ mod receipt_tests {
             late_older: VecDeque::new(),
             older_ids_match: false,
             interactive_sending: HashMap::new(),
+            flows: HashMap::new(),
             awaiting_ack: HashMap::new(),
             receipts_watch: None,
             receipts_pruned: Instant::now(),

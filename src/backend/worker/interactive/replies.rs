@@ -95,6 +95,9 @@ pub(super) fn native(
             InteractiveAction::Copy(field("copy_code").unwrap().into()),
             Vec::new(),
         ),
+        Some("galaxy_message") if super::super::flows::params(value).is_some() => {
+            (InteractiveAction::Flow, Vec::new())
+        }
         Some("payment_info" | "review_and_pay") => match pix(value) {
             Some((code, _)) => (InteractiveAction::Copy(code.into()), Vec::new()),
             None => (InteractiveAction::Unavailable, Vec::new()),
@@ -223,13 +226,22 @@ fn prepare(
     button: usize,
     choice: Option<usize>,
 ) -> Option<wa::Message> {
+    quote(source, original, jid, response(original, button, choice)?)
+}
+
+/// Quotes the card a reply answers; `None` for a card that takes no replies.
+fn quote(
+    source: &Message,
+    original: &wa::Message,
+    jid: &super::super::Jid,
+    mut reply: wa::Message,
+) -> Option<wa::Message> {
     if source.from_me
         || source.edited
         || !matches!(source.content, Content::Interactive { card: Some(_), .. })
     {
         return None;
     }
-    let mut reply = response(original, button, choice)?;
     let sender = Worker::jid_of(&source.sender)?;
     let context = whatsapp_rust::wacore::proto_helpers::build_quote_context_with_info(
         source.id.clone(),
@@ -267,10 +279,46 @@ impl Worker {
             let reply = prepare(&row, &original, &jid, button, choice)?;
             Some((row, reply))
         })();
-        let Some((source, mut message)) = prepared else {
+        let Some((source, message)) = prepared else {
             self.emit(Event::Error("This option is unavailable in ZapFast. Open the message in WhatsApp Web or on your phone.".into()));
             return;
         };
+        self.send_prepared(client, jid, chat, source_id, source, message);
+    }
+
+    /// Sends `reply` quoting the archived card `source_id`, through the same
+    /// path as button replies. False when the card cannot take a reply.
+    pub(in super::super) fn send_interactive_reply(
+        &mut self,
+        chat: ChatId,
+        source_id: String,
+        reply: wa::Message,
+    ) -> bool {
+        let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
+            return false;
+        };
+        let prepared = (|| {
+            let row = self.archive.message(&chat, &source_id).ok().flatten()?;
+            let raw = self.archive.raw(&chat, &source_id).ok().flatten()?;
+            let original = wa::Message::decode_from_slice(&raw).ok()?;
+            Some((quote(&row, &original, &jid, reply)?, row))
+        })();
+        let Some((message, source)) = prepared else {
+            return false;
+        };
+        self.send_prepared(client, jid, chat, source_id, source, message);
+        true
+    }
+
+    fn send_prepared(
+        &mut self,
+        client: std::sync::Arc<whatsapp_rust::Client>,
+        jid: super::super::Jid,
+        chat: ChatId,
+        source_id: String,
+        source: Message,
+        mut message: wa::Message,
+    ) {
         let expiration = self.apply_ephemeral(&chat, &mut message);
         let id = client.generate_message_id().into_string();
         let content = classify(&message).expect("validated interactive reply");
@@ -577,6 +625,30 @@ mod tests {
             let request = native_request(name, json);
             assert!(response(&request, 0, None).is_none());
         }
+    }
+
+    #[test]
+    fn flow_buttons_open_the_flow_and_never_reply_directly() {
+        let json = r#"{"flow_message_version":"3","flow_token":"t","flow_id":"9","flow_cta":"Confirmar","flow_action":"data_exchange"}"#;
+        let request = native_request("galaxy_message", json);
+        let Some(Content::Interactive {
+            card: Some(card), ..
+        }) = classify(&request)
+        else {
+            panic!("card")
+        };
+        assert_eq!(card.buttons[0].label, "Confirmar");
+        assert_eq!(card.buttons[0].action, InteractiveAction::Flow);
+        assert!(!card.needs_phone);
+        assert!(response(&request, 0, None).is_none());
+        assert!(super::super::flow(&request, 0).is_some());
+        assert!(super::super::flow(&request, 1).is_none());
+        // Without a token the button only works on the phone.
+        let request = native_request(
+            "galaxy_message",
+            r#"{"flow_id":"9","flow_cta":"Confirmar"}"#,
+        );
+        assert!(super::super::flow(&request, 0).is_none());
     }
 
     #[test]
