@@ -148,6 +148,7 @@ pub fn handle(app: &mut App, ctx: &egui::Context) {
             match take_destination(input) {
                 Some(1) => actions.extend(super::rail::Destination::Chats.actions(app)),
                 Some(2) => actions.extend(super::rail::Destination::Calls.actions(app)),
+                Some(3) => actions.extend(super::rail::Destination::Channels.actions(app)),
                 _ => {}
             }
         }
@@ -451,8 +452,8 @@ fn take_chat_number(input: &mut egui::InputState) -> Option<usize> {
     number
 }
 
-/// Takes Ctrl+Shift+1 or Ctrl+Shift+2 (Cmd on macOS), the rail's Chats and
-/// Calls, and says which. It goes by the key's place on the keyboard: with
+/// Takes Ctrl+Shift+1, 2 or 3 (Cmd on macOS), the rail's Chats, Calls and
+/// Channels, and says which. It goes by the key's place on the keyboard: with
 /// Shift held, each layout reports the digit as a symbol of its own.
 fn take_destination(input: &mut egui::InputState) -> Option<u8> {
     let mut destination = None;
@@ -470,6 +471,7 @@ fn take_destination(input: &mut egui::InputState) -> Option<u8> {
             destination = match physical_key.unwrap_or(*key) {
                 Key::Num1 => Some(1),
                 Key::Num2 => Some(2),
+                Key::Num3 => Some(3),
                 _ => None,
             };
             return destination.is_none();
@@ -861,6 +863,7 @@ pub const SHORTCUTS: &[(&str, &str)] = &[
         "Enter",
         crate::i18n::gettext_noop("Send (Shift+Enter for a new line)"),
     ),
+    ("Ctrl+Shift+3", crate::i18n::gettext_noop("Channels")),
     (
         "Escape",
         crate::i18n::gettext_noop(
@@ -1650,6 +1653,12 @@ mod tests {
         assert_eq!(
             shifted(&mut app, Key::Exclamationmark, Key::Num1),
             [Action::Open(Page::Chats)]
+        );
+        // Shift+3 is "#" on US layouts.
+        app.page = Page::Chats;
+        assert_eq!(
+            shifted(&mut app, Key::Num3, Key::Num3),
+            [Action::SetChatFilter(crate::model::ChatFilter::Channels)]
         );
         app.page = Page::Chats;
         app.show_starred = true;

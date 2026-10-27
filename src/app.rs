@@ -1346,6 +1346,7 @@ impl App {
             .unwrap_or_else(|| match settings.theme {
                 ThemeChoice::Light => Palette::light(),
                 ThemeChoice::Messages => Palette::messages(),
+                ThemeChoice::Graphite => Palette::graphite(),
                 _ => Palette::dark(),
             });
         let locale = crate::i18n::resolve(settings.interface_language);
@@ -2958,10 +2959,12 @@ impl App {
         let needle = crate::util::search_key(self.search.trim());
         let locked = self.locked_folder_open();
         let filtering = !locked && needle.is_empty() && !self.show_archived;
+        let channels = self.channels_tab();
         let mut chats: Vec<&Chat> = self
             .chats
             .iter()
             .filter(|chat| chat.locked == locked)
+            .filter(|chat| !channels || chat.is_channel())
             .filter(|chat| locked || chat.archived == self.show_archived || !needle.is_empty())
             // Searching still finds people never written to, and one being
             // opened stays.
@@ -3012,6 +3015,25 @@ impl App {
             })
         });
         chats
+    }
+
+    /// Whether the window shows the rail's Channels tab: the chat list with
+    /// only the followed channels, which searching keeps to channels too.
+    pub fn channels_tab(&self) -> bool {
+        self.page == Page::Chats
+            && !self.show_starred
+            && !self.show_archived
+            && !self.locked_folder_open()
+            && self.label_filter.is_none()
+            && self.chat_filter == ChatFilter::Channels
+    }
+
+    /// Whether an invite's group or channel is already among the chats, so
+    /// joining only opens it. A channel left earlier is followed again.
+    pub fn invite_target_known(&self, id: &str, channel: bool) -> bool {
+        self.chats
+            .iter()
+            .any(|chat| chat.id == id && !(channel && chat.left))
     }
 
     /// Whether the chat list keeps the phone's favorites order instead of the
@@ -4050,6 +4072,11 @@ impl App {
                 {
                     match result {
                         Ok((id, pending)) => {
+                            // A followed channel is listed in the Channels tab.
+                            if live && id.ends_with("@newsletter") {
+                                self.actions
+                                    .push(Action::SetChatFilter(ChatFilter::Channels));
+                            }
                             self.invite = None;
                             if live && self.dialog == Some(Dialog::JoinGroup) {
                                 self.dialog = None;
@@ -6242,8 +6269,11 @@ impl App {
             || match self.settings.theme {
                 ThemeChoice::Dark => egui::ThemePreference::Dark,
                 ThemeChoice::Light => egui::ThemePreference::Light,
-                // Messages follows the system's appearance, as Messages does.
-                ThemeChoice::System | ThemeChoice::Messages => egui::ThemePreference::System,
+                // Messages follows the system's appearance, as Messages does,
+                // and Graphite with it.
+                ThemeChoice::System | ThemeChoice::Messages | ThemeChoice::Graphite => {
+                    egui::ThemePreference::System
+                }
             },
             |palette| {
                 if palette.dark {
@@ -6292,6 +6322,12 @@ impl App {
                     Palette::messages()
                 } else {
                     Palette::messages_light()
+                }
+            } else if self.settings.theme == ThemeChoice::Graphite {
+                if dark {
+                    Palette::graphite()
+                } else {
+                    Palette::graphite_light()
                 }
             } else if dark {
                 Palette::dark()
@@ -7086,10 +7122,19 @@ impl App {
                 } else if let Some(code) = crate::safety::group_invite_code(&url) {
                     self.invite = Some(crate::model::GroupInvite {
                         code: code.clone(),
+                        channel: false,
                         state: crate::model::InviteState::Loading,
                     });
                     self.dialog = Some(Dialog::JoinGroup);
                     self.backend.send(Command::PreviewInvite(code));
+                } else if let Some(code) = crate::safety::channel_invite_code(&url) {
+                    self.invite = Some(crate::model::GroupInvite {
+                        code: code.clone(),
+                        channel: true,
+                        state: crate::model::InviteState::Loading,
+                    });
+                    self.dialog = Some(Dialog::JoinGroup);
+                    self.backend.send(Command::PreviewChannel(code));
                 } else if let Some(url) = crate::safety::external_url(&url) {
                     ctx.open_url(egui::OpenUrl::new_tab(url));
                 } else {
@@ -8204,13 +8249,22 @@ impl App {
                     _ => None,
                 });
                 if let Some((id, code, info)) = ready {
-                    if self.chats.iter().any(|chat| chat.id == id) {
+                    let channel = self.invite.as_ref().is_some_and(|invite| invite.channel);
+                    if self.invite_target_known(&id, channel) {
                         self.invite = None;
                         self.dialog = None;
+                        if channel {
+                            self.actions
+                                .push(Action::SetChatFilter(ChatFilter::Channels));
+                        }
                         self.actions.push(Action::OpenChat(id));
                     } else if let Some(invite) = self.invite.as_mut() {
                         invite.state = InviteState::Joining(info);
-                        self.backend.send(Command::JoinInvite(code));
+                        self.backend.send(if channel {
+                            Command::FollowChannel { code, id }
+                        } else {
+                            Command::JoinInvite(code)
+                        });
                     }
                 }
             }

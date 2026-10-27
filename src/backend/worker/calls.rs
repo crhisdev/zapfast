@@ -243,7 +243,7 @@ impl Worker {
         let Some(client) = self.client.clone() else {
             log::warn!("[CALL] cannot start a call: WhatsApp is not connected");
             self.emit(Event::Error(
-                "ZapFast is not connected to WhatsApp".to_owned(),
+                crate::i18n::gettext_noop("ZapFast is not connected to WhatsApp").to_owned(),
             ));
             self.emit_call(placing.not_placed());
             return;
@@ -317,7 +317,7 @@ impl Worker {
         let Some(client) = self.client.clone() else {
             log::warn!("[CALL] cannot start a call: WhatsApp is not connected");
             self.emit(Event::Error(
-                "ZapFast is not connected to WhatsApp".to_owned(),
+                crate::i18n::gettext_noop("ZapFast is not connected to WhatsApp").to_owned(),
             ));
             self.emit_call(placing.not_placed());
             return;
@@ -401,7 +401,7 @@ impl Worker {
         let Some(client) = self.client.clone() else {
             log::warn!("[CALL] cannot join a call link: WhatsApp is not connected");
             self.emit(Event::Error(
-                "ZapFast is not connected to WhatsApp".to_owned(),
+                crate::i18n::gettext_noop("ZapFast is not connected to WhatsApp").to_owned(),
             ));
             self.emit_call(placing.not_placed());
             return;

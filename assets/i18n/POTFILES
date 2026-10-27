@@ -48,3 +48,4 @@ src/backend/worker/stickers.rs
 src/proxy.rs
 src/theme.rs
 src/ui/keys.rs
+src/backend/worker/follow_channel.rs

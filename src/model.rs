@@ -2318,8 +2318,10 @@ pub enum Dialog {
         message: String,
         button: usize,
     },
-    /// Previews a group invite link before joining.
+    /// Previews a group invite link, or a channel link, before joining.
     JoinGroup,
+    /// Takes a channel link to follow, then previews it as `JoinGroup`.
+    FollowChannel,
     /// Confirms setting aside an archive whose key is gone.
     ConfirmStartOver,
     /// The stickers of a pack shared in a chat, with a button to add it.
@@ -2412,10 +2414,12 @@ impl MessageReceipts {
     }
 }
 
-/// A group invite link being previewed or joined.
+/// A group invite link, or a channel link, being previewed or joined.
 #[derive(Clone, Debug, PartialEq)]
 pub struct GroupInvite {
     pub code: String,
+    /// A WhatsApp channel link: joining follows the channel.
+    pub channel: bool,
     pub state: InviteState,
 }
 
@@ -2433,6 +2437,7 @@ pub struct InviteInfo {
     pub id: ChatId,
     pub subject: String,
     pub description: Option<String>,
+    /// A channel's followers.
     pub members: usize,
     /// Admins approve new members before they join.
     pub approval: bool,

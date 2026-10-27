@@ -47,6 +47,7 @@ mod download_folders;
 mod early_events;
 use early_events::WaitingReaction;
 mod favorite_chats;
+mod follow_channel;
 mod group_admin;
 mod interactive;
 mod link_watch;
@@ -7540,7 +7541,10 @@ impl Worker {
                 let Some(client) = self.client.clone() else {
                     self.emit(Event::InvitePreview {
                         code,
-                        result: Err("ZapFast is not connected to WhatsApp".to_owned()),
+                        result: Err(crate::i18n::gettext_noop(
+                            "ZapFast is not connected to WhatsApp",
+                        )
+                        .to_owned()),
                     });
                     return;
                 };
@@ -7569,7 +7573,10 @@ impl Worker {
                 let Some(client) = self.client.clone() else {
                     self.emit(Event::InviteJoined {
                         code,
-                        result: Err("ZapFast is not connected to WhatsApp".to_owned()),
+                        result: Err(crate::i18n::gettext_noop(
+                            "ZapFast is not connected to WhatsApp",
+                        )
+                        .to_owned()),
                     });
                     return;
                 };
@@ -7584,6 +7591,9 @@ impl Worker {
                     let _ = commands.send(Command::InviteJoined { code, result });
                 });
             }
+            Command::PreviewChannel(code) => self.preview_channel(code),
+            Command::FollowChannel { code, id } => self.follow_channel(code, id),
+            Command::ChannelFollowed { code, result } => self.channel_followed(code, result),
             Command::InviteJoined { code, result } => {
                 let result = result.map(|(id, pending)| {
                     if !pending {
