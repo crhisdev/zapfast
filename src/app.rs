@@ -27,7 +27,7 @@ use crate::theme::{self, Palette};
 /// the viewer alike: an expired file has a name of its own.
 fn download_notice(error: String) -> String {
     if error.contains("403") || error.contains("404") {
-        "No longer available on WhatsApp's servers".to_owned()
+        crate::i18n::gettext_noop("No longer available on WhatsApp's servers").to_owned()
     } else {
         error
     }
@@ -1141,7 +1141,8 @@ fn tray_action(event: fastframe_tray::Event, window_hidden: bool) -> Option<Acti
 ///
 /// "Lock ZapFast" is always in the menu, hidden without a password;
 /// `App::sync_tray` shows or hides it as the password is set or removed.
-fn tray_config(lockable: bool) -> fastframe_tray::Config {
+fn tray_config(locale: Locale, lockable: bool) -> fastframe_tray::Config {
+    use crate::i18n::gettext;
     use fastframe_tray::MenuItem;
     fastframe_tray::Config {
         id: "zapfast",
@@ -1152,10 +1153,10 @@ fn tray_config(lockable: bool) -> fastframe_tray::Config {
         // may use the installed one.
         themed_icon: true,
         menu: vec![
-            MenuItem::action(TRAY_SHOW, "Show or hide ZapFast"),
-            MenuItem::action(TRAY_LOCK, "Lock ZapFast").visible(lockable),
+            MenuItem::action(TRAY_SHOW, gettext(locale, "Show or hide ZapFast")),
+            MenuItem::action(TRAY_LOCK, gettext(locale, "Lock ZapFast")).visible(lockable),
             MenuItem::Separator,
-            MenuItem::action(TRAY_QUIT, "Quit"),
+            MenuItem::action(TRAY_QUIT, gettext(locale, "Quit")),
         ],
     }
 }
@@ -1243,8 +1244,10 @@ impl App {
         }
         if options.tray {
             let waker = waker.clone();
-            app.tray =
-                fastframe_tray::Tray::spawn(tray_config(app.tray_lockable), move || waker.wake());
+            app.tray = fastframe_tray::Tray::spawn(
+                tray_config(app.locale, app.tray_lockable),
+                move || waker.wake(),
+            );
         }
         // The clock preference may wait on the desktop portal on Linux; keep
         // it off the first frame.
@@ -1808,7 +1811,10 @@ impl App {
             match Account::detached(&self.dirs, id, crate::settings::AccountSettings::default()) {
                 Ok((account, _)) => account,
                 Err(error) => {
-                    self.toast_error(format!("Could not add an account: {error}"));
+                    self.toast_error(
+                        crate::i18n::gettext(self.locale, "Could not add an account: {error}")
+                            .replace("{error}", &error.to_string()),
+                    );
                     return;
                 }
             }
@@ -1816,7 +1822,10 @@ impl App {
             match Account::spawn(&self.dirs, id, &self.settings, &self.waker) {
                 Ok(account) => account,
                 Err(error) => {
-                    self.toast_error(format!("Could not add an account: {error}"));
+                    self.toast_error(
+                        crate::i18n::gettext(self.locale, "Could not add an account: {error}")
+                            .replace("{error}", &error.to_string()),
+                    );
                     return;
                 }
             }
@@ -2580,7 +2589,7 @@ impl App {
 
     pub fn display_name_or(&self, id: &str, hint: Option<&str>) -> String {
         if self.me.as_deref() == Some(id) {
-            return "You".to_owned();
+            return crate::i18n::gettext(self.locale, "You").into_owned();
         }
         self.person_name(id, hint)
     }
@@ -2595,7 +2604,7 @@ impl App {
                 .me_name
                 .clone()
                 .filter(|name| !name.is_empty())
-                .unwrap_or_else(|| "You".to_owned());
+                .unwrap_or_else(|| crate::i18n::gettext(self.locale, "You").into_owned());
         }
         self.person_name(id, None)
     }
@@ -2607,7 +2616,7 @@ impl App {
         {
             let participants = self.participant_names(chat);
             return if participants.is_empty() {
-                "Group".to_owned()
+                crate::i18n::gettext(self.locale, "Group").into_owned()
             } else {
                 participants
             };
@@ -2696,7 +2705,7 @@ impl App {
         }
         match phone {
             Some(digits) => crate::util::phone(digits),
-            None => "Unknown".to_owned(),
+            None => crate::i18n::gettext(self.locale, "Unknown").into_owned(),
         }
     }
 
@@ -2779,7 +2788,7 @@ impl App {
             .filter(|id| Some(id.as_str()) != me)
         {
             let name = self.display_name(id);
-            if name.starts_with('+') || name == "Unknown" {
+            if name.starts_with('+') || name == crate::i18n::gettext(self.locale, "Unknown") {
                 numbers.push((id.clone(), name));
             } else {
                 named.push((id.clone(), name));
@@ -2791,7 +2800,10 @@ impl App {
         if let Some(me) = me
             && chat.participants.iter().any(|id| id == me)
         {
-            named.push((me.to_owned(), "You".to_owned()));
+            named.push((
+                me.to_owned(),
+                crate::i18n::gettext(self.locale, "You").into_owned(),
+            ));
         }
         named
     }
@@ -2850,7 +2862,7 @@ impl App {
             .filter(|id| Some(id.as_str()) != me && seen.insert(id.as_str()))
         {
             let name = self.display_name(id);
-            if name.starts_with('+') || name == "Unknown" {
+            if name.starts_with('+') || name == crate::i18n::gettext(self.locale, "Unknown") {
                 numbers.push(name);
             } else {
                 names.push(self.short_name(id, name.trim_start_matches('~')).to_owned());
@@ -2871,13 +2883,15 @@ impl App {
             counted.push(if count == 1 {
                 name
             } else {
-                format!("{name} x{count}")
+                crate::i18n::gettext(self.locale, "{name} x{count}")
+                    .replace("{name}", &name)
+                    .replace("{count}", &count.to_string())
             });
         }
         numbers.sort();
         counted.extend(numbers);
         if chat.participants.iter().any(|id| Some(id.as_str()) == me) {
-            counted.push("You".to_owned());
+            counted.push(crate::i18n::gettext(self.locale, "You").into_owned());
         }
         counted.join(", ")
     }
@@ -3906,7 +3920,7 @@ impl App {
             }
             Event::Syncing(syncing) => {
                 if self.syncing && !syncing {
-                    self.toast("History loaded");
+                    self.toast(crate::i18n::gettext(self.locale, "History loaded"));
                 }
                 if live && !self.syncing && syncing {
                     self.announcer.say(
@@ -4041,9 +4055,10 @@ impl App {
                                 self.dialog = None;
                             }
                             if pending {
-                                self.toast(
+                                self.toast(crate::i18n::gettext(
+                                    self.locale,
                                     "Request sent. An admin must approve it before you join.",
-                                );
+                                ));
                             } else if live {
                                 self.actions.push(Action::OpenChat(id));
                             }
@@ -4233,7 +4248,10 @@ impl App {
             Event::UpdateAvailable { version, url } => {
                 let notice = crate::updates::Release { version, url };
                 if self.update.as_ref() != Some(&notice) {
-                    self.toast(format!("ZapFast {} is available", notice.version));
+                    self.toast(
+                        crate::i18n::gettext(self.locale, "ZapFast {} is available")
+                            .replace("{}", &notice.version),
+                    );
                 }
                 self.update = Some(notice);
             }
@@ -4396,7 +4414,7 @@ impl App {
                 if (live && self.announced_offline)
                     || matches!(self.link, LinkStatus::Disconnected { .. })
                 {
-                    self.toast("Back online");
+                    self.toast(crate::i18n::gettext(self.locale, "Back online"));
                 }
                 if live {
                     self.announced_offline = false;
@@ -4468,7 +4486,10 @@ impl App {
                 if !self.any_linked() {
                     self.forget_app_lock();
                 }
-                self.toast_error("This device was unlinked from your phone");
+                self.toast_error(crate::i18n::gettext(
+                    self.locale,
+                    "This device was unlinked from your phone",
+                ));
                 return;
             }
             LinkStatus::Failed(message) => self.toast_error(message.clone()),
@@ -5859,7 +5880,7 @@ impl App {
 
     fn stage_all(&mut self, items: impl IntoIterator<Item = Pending>) {
         if self.open_chat.is_none() {
-            self.toast_error("Open a chat first");
+            self.toast_error(crate::i18n::gettext(self.locale, "Open a chat first"));
             return;
         }
         for item in items {
@@ -5983,17 +6004,21 @@ impl App {
     #[allow(dead_code)]
     fn send_files(&mut self, paths: Vec<PathBuf>) {
         let Some(chat) = self.open_chat.clone() else {
-            self.toast_error("Open a chat first");
+            self.toast_error(crate::i18n::gettext(self.locale, "Open a chat first"));
             return;
         };
         if paths.is_empty() {
             return;
         }
-        self.toast(format!(
-            "Sending {} file{}…",
-            paths.len(),
-            if paths.len() == 1 { "" } else { "s" }
-        ));
+        self.toast(
+            crate::i18n::ngettext(
+                self.locale,
+                "Sending {} file…",
+                "Sending {} files…",
+                paths.len().try_into().unwrap_or(u32::MAX),
+            )
+            .replace("{}", &paths.len().to_string()),
+        );
         self.backend.send(Command::SendFiles {
             chat,
             paths,
@@ -6560,7 +6585,7 @@ impl App {
                         self.apply(
                             Action::StartChat {
                                 id,
-                                name: "You".to_owned(),
+                                name: crate::i18n::gettext(self.locale, "You").into_owned(),
                                 dismiss_dialog: true,
                             },
                             ctx,
@@ -6738,7 +6763,10 @@ impl App {
                     return;
                 };
                 if conversation.fetching_phone {
-                    self.toast("History is already being requested for this chat");
+                    self.toast(crate::i18n::gettext(
+                        self.locale,
+                        "History is already being requested for this chat",
+                    ));
                     return;
                 }
                 if conversation.message(&message).is_none() {
@@ -6747,7 +6775,10 @@ impl App {
                 conversation.fetching_phone = true;
                 conversation.phone_explicit = true;
                 self.backend.send(Command::ReloadHistory { chat, message });
-                self.toast("Requesting earlier messages from your phone");
+                self.toast(crate::i18n::gettext(
+                    self.locale,
+                    "Requesting earlier messages from your phone",
+                ));
             }
             Action::ToggleMotion { chat, message } => {
                 let playing = (chat, message);
@@ -6795,8 +6826,9 @@ impl App {
                     // The limit spares the disk and the link from what nobody
                     // asked for; a file the reader clicked downloads whole.
                     if !manual && !media.is_within_download_limit() {
-                        let notice =
-                            "This attachment is larger than the 64 MiB automatic download limit";
+                        let notice = crate::i18n::gettext_noop(
+                            "This attachment is larger than the 64 MiB automatic download limit",
+                        );
                         media.state = MediaState::Failed(notice.into());
                         self.viewer_media_state
                             .insert(message.clone(), MediaState::Failed(notice.into()));
@@ -6842,7 +6874,9 @@ impl App {
                     // own, or one that never decodes would download forever:
                     // the bubble offers the retry, as a failed download does.
                     log::warn!("a downloaded attachment could not be displayed");
-                    media.state = MediaState::Failed("ZapFast could not display this file".into());
+                    media.state = MediaState::Failed(
+                        crate::i18n::gettext_noop("ZapFast could not display this file").into(),
+                    );
                 } else if !matches!(media.state, MediaState::Downloading) {
                     // Gone from the disk: it downloads again like any
                     // attachment that was never downloaded.
@@ -6998,10 +7032,19 @@ impl App {
             Action::OpenFile(path) => {
                 if crate::safety::can_open_attachment(&path) && path.is_file() {
                     if let Err(error) = open::that_detached(&path) {
-                        self.toast_error(format!("Could not open the attachment: {error}"));
+                        self.toast_error(
+                            crate::i18n::gettext(
+                                self.locale,
+                                "Could not open the attachment: {error}",
+                            )
+                            .replace("{error}", &error.to_string()),
+                        );
                     }
                 } else {
-                    self.toast("For safety, open this file yourself from its folder");
+                    self.toast(crate::i18n::gettext(
+                        self.locale,
+                        "For safety, open this file yourself from its folder",
+                    ));
                     if let Some(folder) = path.parent() {
                         self.actions.push(Action::OpenFolder(folder.to_owned()));
                     }
@@ -7018,10 +7061,16 @@ impl App {
             Action::OpenFolder(path) => {
                 if path.is_dir() {
                     if let Err(error) = open::that_detached(&path) {
-                        self.toast_error(format!("Could not open the folder: {error}"));
+                        self.toast_error(
+                            crate::i18n::gettext(self.locale, "Could not open the folder: {error}")
+                                .replace("{error}", &error.to_string()),
+                        );
                     }
                 } else {
-                    self.toast_error("The folder is unavailable");
+                    self.toast_error(crate::i18n::gettext(
+                        self.locale,
+                        "The folder is unavailable",
+                    ));
                 }
             }
             Action::OpenUrl(url) => {
@@ -7044,12 +7093,15 @@ impl App {
                 } else if let Some(url) = crate::safety::external_url(&url) {
                     ctx.open_url(egui::OpenUrl::new_tab(url));
                 } else {
-                    self.toast_error("This link type cannot be opened from ZapFast");
+                    self.toast_error(crate::i18n::gettext(
+                        self.locale,
+                        "This link type cannot be opened from ZapFast",
+                    ));
                 }
             }
             Action::CopyText(text) => {
                 ctx.copy_text(text);
-                self.toast("Copied");
+                self.toast(crate::i18n::gettext(self.locale, "Copied"));
             }
             Action::CopyImage(path) => {
                 self.backend.send(Command::PrepareClipboardImage(path));
@@ -7854,7 +7906,7 @@ impl App {
             }
             Action::SendGif(gif) => {
                 if let Some(chat) = self.open_chat.clone() {
-                    self.toast("Sending GIF…");
+                    self.toast(crate::i18n::gettext(self.locale, "Sending GIF…"));
                     let quoting = self.reply_to.take();
                     self.backend.send(Command::SendGif { chat, gif, quoting });
                     self.picker = None;
@@ -7948,7 +8000,10 @@ impl App {
             Action::ClearChat(chat) => self.backend.send(Command::ClearChat(chat)),
             Action::SetPinned(chat, pinned) => {
                 if pinned && self.pinned_count() >= self.pin_limit {
-                    self.toast(format!("You can only pin {} chats", self.pin_limit));
+                    self.toast(
+                        crate::i18n::gettext(self.locale, "You can only pin {} chats")
+                            .replace("{}", &self.pin_limit.to_string()),
+                    );
                     return;
                 }
                 if let Some(known) = self.chat_mut(&chat) {
@@ -9145,7 +9200,7 @@ impl App {
     }
 
     pub fn toast(&mut self, message: impl Into<String>) {
-        let message = message.into();
+        let message = crate::i18n::localize(self.locale, &message.into());
         let said = self.toast_said(&message);
         self.announcer.say(crate::announcer::Category::Toast, said);
         self.toasts.push(Toast {
@@ -9171,7 +9226,7 @@ impl App {
     }
 
     pub fn toast_error(&mut self, message: impl Into<String>) {
-        let message = message.into();
+        let message = crate::i18n::localize(self.locale, &message.into());
         let said = self.toast_said(&message);
         self.announcer.say(crate::announcer::Category::Error, said);
         log::warn!("an operation failed; details are shown in the window");
@@ -9368,12 +9423,21 @@ impl App {
                 self.start_with_system = crate::autostart::switch(state);
                 if outcome.changed && matches!(state, fastframe_autostart::State::NeedsApproval(_))
                 {
-                    self.toast("Allow ZapFast in System Settings, under Login Items.");
+                    self.toast(crate::i18n::gettext(
+                        self.locale,
+                        "Allow ZapFast in System Settings, under Login Items.",
+                    ));
                 }
             }
             Err(error) => {
                 if outcome.changed {
-                    self.toast_error(format!("Could not change the login item: {error}"));
+                    self.toast_error(
+                        crate::i18n::gettext(
+                            self.locale,
+                            "Could not change the login item: {error}",
+                        )
+                        .replace("{error}", &error.to_string()),
+                    );
                 }
             }
         }
@@ -10019,7 +10083,12 @@ impl App {
         // Microphone errors name only the device and its stream, never what
         // was said, so the log keeps them for bug reports (#382).
         log::warn!("recording failed: {error}");
-        self.toast_error(format!("Could not record: {error}"));
+        self.toast_error(
+            crate::i18n::gettext(self.locale, "Could not record: {error}").replace(
+                "{error}",
+                &crate::i18n::localize(self.locale, &error.to_string()),
+            ),
+        );
     }
 
     pub fn frame_ui(&mut self, ui: &mut egui::Ui) {
@@ -15997,7 +16066,7 @@ mod tests {
         ));
         for lockable in [false, true] {
             assert_eq!(
-                super::tray_config(lockable).menu,
+                super::tray_config(Locale::English, lockable).menu,
                 [
                     fastframe_tray::MenuItem::action(super::TRAY_SHOW, "Show or hide ZapFast"),
                     fastframe_tray::MenuItem::action(super::TRAY_LOCK, "Lock ZapFast")

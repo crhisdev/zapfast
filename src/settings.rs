@@ -46,10 +46,10 @@ impl ThemeChoice {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Dark => "Dark",
-            Self::Light => "Light",
-            Self::System => "Follow system",
-            Self::Messages => "Messages",
+            Self::Dark => crate::i18n::gettext_noop("Dark"),
+            Self::Light => crate::i18n::gettext_noop("Light"),
+            Self::System => crate::i18n::gettext_noop("Follow system"),
+            Self::Messages => crate::i18n::gettext_noop("Messages"),
         }
     }
 }

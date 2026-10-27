@@ -621,7 +621,7 @@ fn forward(app: &mut App, ui: &mut egui::Ui, messages: &[String]) {
         &palette,
         egui::Id::new("forward-search"),
         &mut app.forward_search,
-        "Search chats",
+        &crate::i18n::gettext(app.locale, "Search chats"),
         width,
     );
     if ui.memory(|memory| memory.focused().is_none()) {
@@ -734,7 +734,7 @@ fn forward(app: &mut App, ui: &mut egui::Ui, messages: &[String]) {
             if chats.is_empty() {
                 theme::text(
                     ui,
-                    "No writable chats found",
+                    crate::i18n::gettext(app.locale, "No writable chats found"),
                     theme::regular(13.5),
                     palette.secondary,
                 );
@@ -935,6 +935,7 @@ fn shortcut_row(
 
 fn shortcuts(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
+    let locale = app.locale;
     title(
         ui,
         app,
@@ -977,7 +978,13 @@ fn shortcuts(app: &mut App, ui: &mut egui::Ui) {
                             ui.set_width(column);
                             ui.spacing_mut().item_spacing = vec2(18.0, 8.0);
                             for (keys, what) in rows {
-                                shortcut_row(ui, &palette, keys_width, keys, what);
+                                shortcut_row(
+                                    ui,
+                                    &palette,
+                                    keys_width,
+                                    keys,
+                                    &crate::i18n::gettext(locale, what),
+                                );
                             }
                         },
                     );
@@ -1132,7 +1139,12 @@ fn join_group(app: &mut App, ui: &mut egui::Ui) {
         }
         InviteState::Failed(error) => {
             title(ui, app, &crate::i18n::gettext(app.locale, "Group invite"));
-            theme::paragraph(ui, error, theme::regular(13.5), palette.text);
+            theme::paragraph(
+                ui,
+                &crate::i18n::localize(app.locale, error),
+                theme::regular(13.5),
+                palette.text,
+            );
             cancel_row(app, ui);
             return;
         }

@@ -122,7 +122,7 @@ fn body(app: &mut App, ui: &mut egui::Ui) {
             theme::icon(ui, Icon::CircleAlert, 28.0, palette.danger);
             ui.add(
                 egui::Label::new(
-                    egui::RichText::new(message)
+                    egui::RichText::new(crate::i18n::localize(app.locale, &message))
                         .font(theme::regular(13.5))
                         .color(palette.danger),
                 )

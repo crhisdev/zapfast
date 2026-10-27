@@ -234,7 +234,9 @@ impl Worker {
         }
         if !callable_chat(&chat) {
             log::warn!("[CALL] refusing a call to a chat that is neither a person nor a group");
-            self.emit(Event::Error("Calls are one to one only".to_owned()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Calls are one to one only").to_owned(),
+            ));
             self.emit_call(placing.not_placed());
             return;
         }
@@ -284,9 +286,10 @@ impl Worker {
             }
             Err(error) => {
                 log::error!("[CALL] could not start the call: {error}");
-                self.emit(Event::Error(format!(
-                    "The call could not be started: {error}"
-                )));
+                self.emit(Event::Error(
+                    crate::i18n::gettext_noop("The call could not be started: {error}")
+                        .replace("{error}", &error.to_string()),
+                ));
                 self.emit_call(placing.not_placed());
             }
         }
@@ -359,9 +362,10 @@ impl Worker {
             }
             Err(error) => {
                 log::error!("[CALL] could not start the group call: {error}");
-                self.emit(Event::Error(format!(
-                    "The call could not be started: {error}"
-                )));
+                self.emit(Event::Error(
+                    crate::i18n::gettext_noop("The call could not be started: {error}")
+                        .replace("{error}", &error.to_string()),
+                ));
                 self.emit_call(placing.not_placed());
             }
         }
@@ -432,9 +436,10 @@ impl Worker {
             }
             Err(error) => {
                 log::error!("[CALL] could not join the call link: {error}");
-                self.emit(Event::Error(format!(
-                    "The call link could not be joined: {error}"
-                )));
+                self.emit(Event::Error(
+                    crate::i18n::gettext_noop("The call link could not be joined: {error}")
+                        .replace("{error}", &error.to_string()),
+                ));
                 self.emit_call(placing.not_placed());
             }
         }
@@ -473,9 +478,10 @@ impl Worker {
                     Err(error) => {
                         log::error!("[CALL] could not answer the call: {error}");
                         let update = runtime.call.abandon(&client).await;
-                        self.emit(Event::Error(format!(
-                            "The call could not be answered: {error}"
-                        )));
+                        self.emit(Event::Error(
+                            crate::i18n::gettext_noop("The call could not be answered: {error}")
+                                .replace("{error}", &error.to_string()),
+                        ));
                         Some(update)
                     }
                 }
@@ -634,9 +640,10 @@ impl Worker {
             None => None,
         };
         if let Some(error) = refused {
-            self.emit(Event::Error(format!(
-                "The call link could not be joined: {error}"
-            )));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("The call link could not be joined: {error}")
+                    .replace("{error}", &error.to_string()),
+            ));
         }
         if let Some(refusal) = group_refused {
             self.emit(Event::Error(group_refusal_text(&refusal)));
@@ -1283,7 +1290,8 @@ fn group_refusal_text(refusal: &calls::GroupRefusal) -> String {
     if refusal.not_enabled {
         calls::GROUP_CALLS_NOT_ENABLED.to_owned()
     } else {
-        format!("The call could not be started: {}", refusal.detail)
+        crate::i18n::gettext_noop("The call could not be started: {error}")
+            .replace("{error}", &refusal.detail.to_string())
     }
 }
 

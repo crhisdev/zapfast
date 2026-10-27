@@ -385,47 +385,59 @@ fn identity(app: &mut App, ui: &mut egui::Ui, shown: &Shown, overlay: bool) {
             let mut submit = false;
             ui.horizontal(|ui| {
                 ui.add_space((ui.available_width() - 288.0).max(0.0) / 2.0);
-                let name_field = |ui: &mut egui::Ui, buffer: &mut String, salt: &str, hint| {
-                    let format = egui::TextFormat::simple(theme::semibold(15.0), palette.text);
-                    let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap: f32| {
-                        crate::bidi::layout_field(ui, text.as_str(), &format, wrap)
+                let name_field =
+                    |ui: &mut egui::Ui, buffer: &mut String, salt: &str, hint: &str| {
+                        let format = egui::TextFormat::simple(theme::semibold(15.0), palette.text);
+                        let mut layouter =
+                            |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap: f32| {
+                                crate::bidi::layout_field(ui, text.as_str(), &format, wrap)
+                            };
+                        let align = if crate::bidi::base_rtl(buffer) {
+                            Align::RIGHT
+                        } else {
+                            Align::LEFT
+                        };
+                        let field = Frame::new()
+                            .fill(palette.surface)
+                            .corner_radius(CornerRadius::same(theme::RADIUS))
+                            .inner_margin(Margin::symmetric(10, 5))
+                            .show(ui, |ui| {
+                                ui.add(
+                                    egui::TextEdit::singleline(buffer)
+                                        .id(egui::Id::new(salt))
+                                        .hint_text(
+                                            egui::RichText::new(hint)
+                                                .color(palette.dim)
+                                                .font(theme::semibold(15.0)),
+                                        )
+                                        .font(theme::semibold(15.0))
+                                        .text_color(palette.text)
+                                        .frame(Frame::NONE)
+                                        .desired_width(108.0)
+                                        .horizontal_align(align)
+                                        .layouter(&mut layouter),
+                                )
+                            });
+                        theme::focus_outline(
+                            ui,
+                            field.inner.id,
+                            field.response.rect,
+                            f32::from(theme::RADIUS),
+                        );
+                        field.inner
                     };
-                    let align = if crate::bidi::base_rtl(buffer) {
-                        Align::RIGHT
-                    } else {
-                        Align::LEFT
-                    };
-                    let field = Frame::new()
-                        .fill(palette.surface)
-                        .corner_radius(CornerRadius::same(theme::RADIUS))
-                        .inner_margin(Margin::symmetric(10, 5))
-                        .show(ui, |ui| {
-                            ui.add(
-                                egui::TextEdit::singleline(buffer)
-                                    .id(egui::Id::new(salt))
-                                    .hint_text(
-                                        egui::RichText::new(hint)
-                                            .color(palette.dim)
-                                            .font(theme::semibold(15.0)),
-                                    )
-                                    .font(theme::semibold(15.0))
-                                    .text_color(palette.text)
-                                    .frame(Frame::NONE)
-                                    .desired_width(108.0)
-                                    .horizontal_align(align)
-                                    .layouter(&mut layouter),
-                            )
-                        });
-                    theme::focus_outline(
-                        ui,
-                        field.inner.id,
-                        field.response.rect,
-                        f32::from(theme::RADIUS),
-                    );
-                    field.inner
-                };
-                let first_field = name_field(ui, first, "contact-first", "First name");
-                let last_field = name_field(ui, last, "contact-last", "Surname");
+                let first_field = name_field(
+                    ui,
+                    first,
+                    "contact-first",
+                    &crate::i18n::gettext(app.locale, "First name"),
+                );
+                let last_field = name_field(
+                    ui,
+                    last,
+                    "contact-last",
+                    &crate::i18n::gettext(app.locale, "Surname"),
+                );
                 if ui.memory(|memory| memory.focused().is_none()) {
                     first_field.request_focus();
                 }
@@ -437,7 +449,7 @@ fn identity(app: &mut App, ui: &mut egui::Ui, shown: &Shown, overlay: bool) {
                     18.0,
                     palette.secondary,
                     palette.accent,
-                    "Save name (Enter)",
+                    &crate::i18n::gettext(app.locale, "Save name (Enter)"),
                 )
                 .tab_stop(Stop::InfoControl(NAME_CHECK_STOP))
                 .clicked()
@@ -478,7 +490,7 @@ fn identity(app: &mut App, ui: &mut egui::Ui, shown: &Shown, overlay: bool) {
         }
         if let Some(presence) = app.presence.get(id) {
             let status = if presence.online {
-                "online".to_owned()
+                crate::i18n::gettext(app.locale, "online").into_owned()
             } else if let Some(seen) = presence.last_seen {
                 crate::util::last_seen(app.locale, seen)
             } else {
@@ -492,9 +504,10 @@ fn identity(app: &mut App, ui: &mut egui::Ui, shown: &Shown, overlay: bool) {
             theme::text(
                 ui,
                 if until == 0 {
-                    "Muted".to_owned()
+                    crate::i18n::gettext(app.locale, "Muted").into_owned()
                 } else {
-                    format!("Muted until {}", crate::util::chat_stamp(app.locale, until))
+                    crate::i18n::gettext(app.locale, "Muted until {}")
+                        .replace("{}", &crate::util::chat_stamp(app.locale, until))
                 },
                 theme::regular(12.5),
                 palette.secondary,
@@ -601,11 +614,11 @@ fn identity(app: &mut App, ui: &mut egui::Ui, shown: &Shown, overlay: bool) {
 fn actions(app: &mut App, ui: &mut egui::Ui, shown: &Shown, mine: bool, editable: bool) {
     let palette = app.palette;
     let id = shown.id.as_str();
-    let mut buttons: Vec<(Icon, &str, Vec<Action>)> = Vec::new();
+    let mut buttons: Vec<(Icon, std::borrow::Cow<'static, str>, Vec<Action>)> = Vec::new();
     if !shown.group && !mine {
         buttons.push((
             Icon::MessageCircle,
-            "Message",
+            crate::i18n::gettext(app.locale, "Message"),
             vec![
                 Action::StartChat {
                     id: id.to_owned(),
@@ -625,7 +638,11 @@ fn actions(app: &mut App, ui: &mut egui::Ui, shown: &Shown, mine: bool, editable
             .is_some_and(|full| !full.is_empty());
         buttons.push((
             Icon::User,
-            if known { "Rename" } else { "Add to contacts" },
+            if known {
+                crate::i18n::gettext(app.locale, "Rename")
+            } else {
+                crate::i18n::gettext(app.locale, "Add to contacts")
+            },
             vec![Action::EditContact {
                 id: id.to_owned(),
                 name: shown.name.trim_start_matches('~').to_owned(),
@@ -635,7 +652,7 @@ fn actions(app: &mut App, ui: &mut egui::Ui, shown: &Shown, mine: bool, editable
     if let Some(phone) = &shown.phone {
         buttons.push((
             Icon::Copy,
-            "Copy number",
+            crate::i18n::gettext(app.locale, "Copy number"),
             vec![Action::CopyText(format!("+{phone}"))],
         ));
     }
@@ -643,13 +660,13 @@ fn actions(app: &mut App, ui: &mut egui::Ui, shown: &Shown, mine: bool, editable
         buttons.push(if shown.muted {
             (
                 Icon::Bell,
-                "Unmute",
+                crate::i18n::gettext(app.locale, "Unmute"),
                 vec![Action::SetMuted(id.to_owned(), None)],
             )
         } else {
             (
                 Icon::BellOff,
-                "Mute",
+                crate::i18n::gettext(app.locale, "Mute"),
                 vec![Action::SetMuted(id.to_owned(), Some(0))],
             )
         });
@@ -659,15 +676,19 @@ fn actions(app: &mut App, ui: &mut egui::Ui, shown: &Shown, mine: bool, editable
             } else {
                 Icon::Pin
             },
-            if shown.pinned { "Unpin" } else { "Pin" },
+            if shown.pinned {
+                crate::i18n::gettext(app.locale, "Unpin")
+            } else {
+                crate::i18n::gettext(app.locale, "Pin")
+            },
             vec![Action::SetPinned(id.to_owned(), !shown.pinned)],
         ));
         buttons.push((
             Icon::Archive,
             if shown.archived {
-                "Unarchive"
+                crate::i18n::gettext(app.locale, "Unarchive")
             } else {
-                "Archive"
+                crate::i18n::gettext(app.locale, "Archive")
             },
             vec![
                 Action::SetArchived(id.to_owned(), !shown.archived),
@@ -684,7 +705,7 @@ fn actions(app: &mut App, ui: &mut egui::Ui, shown: &Shown, mine: bool, editable
         let mut end = start;
         let mut total = 0.0;
         while end < buttons.len() {
-            let width = theme::soft_button_width(ui, buttons[end].1, true);
+            let width = theme::soft_button_width(ui, &buttons[end].1, true);
             let grown = if end == start {
                 width
             } else {
@@ -732,7 +753,7 @@ fn members(app: &mut App, ui: &mut egui::Ui, shown: &Shown, window: f32, photo: 
     };
     theme::text(
         ui,
-        format!("Members ({})", members.len()),
+        crate::i18n::gettext(app.locale, "Members ({})").replace("{}", &members.len().to_string()),
         theme::medium(12.5),
         palette.secondary,
     );

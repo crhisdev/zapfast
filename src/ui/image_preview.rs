@@ -492,7 +492,7 @@ fn motion_button(
     let (icon, hint) = match &motion.state {
         crate::model::MediaState::Failed(error) if !playing => (
             Icon::CircleAlert,
-            std::borrow::Cow::Borrowed(error.as_str()),
+            std::borrow::Cow::Owned(crate::i18n::localize(app.locale, error)),
         ),
         _ if playing => (
             Icon::Image,
@@ -759,7 +759,7 @@ fn pending(
         ui.painter().text(
             pos2(stage.center().x, disc.bottom() + 12.0),
             egui::Align2::CENTER_CENTER,
-            error,
+            crate::i18n::localize(app.locale, error),
             theme::regular(12.5),
             palette.danger,
         );
@@ -932,7 +932,7 @@ fn video(
             ui.painter().text(
                 pos2(media.center().x, media.bottom() - 18.0),
                 egui::Align2::CENTER_CENTER,
-                error,
+                crate::i18n::localize(app.locale, error),
                 theme::regular(12.5),
                 palette.danger,
             );
@@ -1182,9 +1182,15 @@ fn navigation_overlay(
     }
     let inset = INSET.min((band.width() - 2.0 * DIAMETER) / 2.0);
     let (previous, next) = if clip {
-        ("Previous", "Next")
+        (
+            crate::i18n::gettext_noop("Previous"),
+            crate::i18n::gettext_noop("Next"),
+        )
     } else {
-        ("Previous (Left arrow)", "Next (Right arrow)")
+        (
+            crate::i18n::gettext_noop("Previous (Left arrow)"),
+            crate::i18n::gettext_noop("Next (Right arrow)"),
+        )
     };
     for (right, icon, hint, step) in [
         (false, Icon::ChevronLeft, previous, -1i8),
