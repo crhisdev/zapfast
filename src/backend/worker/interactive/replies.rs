@@ -95,6 +95,10 @@ pub(super) fn native(
             InteractiveAction::Copy(field("copy_code").unwrap().into()),
             Vec::new(),
         ),
+        Some("payment_info" | "review_and_pay") => match pix(value) {
+            Some((code, _)) => (InteractiveAction::Copy(code.into()), Vec::new()),
+            None => (InteractiveAction::Unavailable, Vec::new()),
+        },
         Some("single_select") => {
             let mut options = Vec::new();
             let mut replies = Vec::new();
@@ -134,6 +138,21 @@ pub(super) fn native(
         }
         _ => (InteractiveAction::Unavailable, Vec::new()),
     }
+}
+
+/// The Pix copy-and-paste code of a payment button, else its Pix key, with
+/// the label WhatsApp shows when the sender gives none. Pix is Brazilian only,
+/// so the fallback label is Portuguese.
+pub(super) fn pix(value: &serde_json::Value) -> Option<(&str, &'static str)> {
+    let settings = value.get("payment_settings")?.as_array()?;
+    let find = |kind: &str, field: &str| {
+        settings
+            .iter()
+            .find_map(|setting| present(setting.get(kind)?.get(field)?.as_str()))
+    };
+    find("pix_dynamic_code", "code")
+        .map(|code| (code, "Copiar código Pix"))
+        .or_else(|| find("pix_static_code", "key").map(|key| (key, "Copiar chave Pix")))
 }
 
 pub(super) fn list(
@@ -556,6 +575,27 @@ mod tests {
             ),
         ] {
             let request = native_request(name, json);
+            assert!(response(&request, 0, None).is_none());
+        }
+    }
+
+    #[test]
+    fn pix_payment_buttons_copy_the_code_or_key_without_replying() {
+        let dynamic = r#"{"payment_settings":[{"type":"pix_dynamic_code","pix_dynamic_code":{"code":"000201PIX","key":"k"}}]}"#;
+        let fixed = r#"{"payment_settings":[{"type":"pix_static_code","pix_static_code":{"key":"12345678000100","key_type":"CNPJ"}}]}"#;
+        for (name, json, code, label) in [
+            ("review_and_pay", dynamic, "000201PIX", "Copiar código Pix"),
+            ("payment_info", fixed, "12345678000100", "Copiar chave Pix"),
+        ] {
+            let request = native_request(name, json);
+            let Some(Content::Interactive {
+                card: Some(card), ..
+            }) = classify(&request)
+            else {
+                panic!("card")
+            };
+            assert_eq!(card.buttons[0].label, label);
+            assert_eq!(card.buttons[0].action, InteractiveAction::Copy(code.into()));
             assert!(response(&request, 0, None).is_none());
         }
     }

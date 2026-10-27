@@ -59,7 +59,12 @@ impl Text {
         let label = value
             .get("display_text")
             .and_then(|v| v.as_str())
-            .or_else(|| value.get("title").and_then(|v| v.as_str()));
+            .or_else(|| value.get("title").and_then(|v| v.as_str()))
+            .or_else(|| {
+                matches!(name, Some("payment_info" | "review_and_pay"))
+                    .then(|| replies::pix(&value).map(|(_, label)| label))
+                    .flatten()
+            });
         let (action, replies) = replies::native(name, label, &value);
         self.action(
             label,
@@ -162,7 +167,12 @@ impl Text {
         let carousel = children.is_some();
         let needs_phone = self.omitted
             || (!carousel && self.body.is_empty() && image.is_none())
-            || has_unrendered_content(base);
+            || has_unrendered_content(base)
+            // Flows (forms) and other unsupported actions only work on the phone.
+            || (!carousel
+                && self.buttons.iter().any(|button| {
+                    button.url.is_none() && matches!(button.action, InteractiveAction::Unavailable)
+                }));
         let card = is_request.then(|| {
             let body = if let Some(parent) = envelope(base).filter(|_| carousel) {
                 let mut parent = parent.clone();
