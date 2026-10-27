@@ -16,6 +16,72 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
+#: src/ui/dialogs.rs
+msgid "Channel"
+msgstr "Canal"
+
+#: src/ui/dialogs.rs
+msgid "Looking up the channel…"
+msgstr "Procurando o canal…"
+
+#: src/ui/dialogs.rs
+msgid "Open channel"
+msgstr "Abrir canal"
+
+#: src/ui/dialogs.rs
+msgid "Follow channel"
+msgstr "Seguir canal"
+
+#: src/ui/dialogs.rs
+msgid "Following…"
+msgstr "Seguindo…"
+
+#: src/ui/dialogs.rs
+msgid "This channel link is invalid or the channel no longer exists."
+msgstr "Este link de canal é inválido ou o canal não existe mais."
+
+#: src/ui/dialogs.rs
+msgid "WhatsApp could not open this channel. Try again later."
+msgstr "O WhatsApp não conseguiu abrir este canal. Tente novamente mais tarde."
+
+#: src/ui/chats.rs src/ui/dialogs.rs
+msgid "Follow a channel"
+msgstr "Seguir um canal"
+
+#: src/ui/dialogs.rs
+msgid "Paste the channel's link. The channel shares it under Channel info, Share."
+msgstr "Cole o link do canal. Ele fica em Dados do canal, Compartilhar."
+
+#: src/ui/dialogs.rs
+msgid "This is not a WhatsApp channel link."
+msgstr "Este não é um link de canal do WhatsApp."
+
+#: src/ui/dialogs.rs
+msgid "Continue"
+msgstr "Continuar"
+
+#: src/ui/chats.rs
+msgid "No channels"
+msgstr "Nenhum canal"
+
+#: src/ui/chats.rs
+msgid "Follow a channel by its link with the + button above."
+msgstr "Siga um canal pelo link com o botão + acima."
+
+#: src/ui/rail.rs
+msgid "Mute all channels"
+msgstr "Silenciar todos os canais"
+
+#: src/ui/rail.rs
+msgid "Unmute all channels"
+msgstr "Reativar som de todos os canais"
+
+#: src/ui/dialogs.rs
+msgid "{} follower"
+msgid_plural "{} followers"
+msgstr[0] "{} seguidor"
+msgstr[1] "{} seguidores"
+
 #. Translators: one word, no spaces. The word after @ that mentions everyone.
 #: src/mentions.rs:80
 msgctxt "mention"
@@ -3842,9 +3908,6 @@ msgstr "Enter envia"
 
 #~ msgid "Group"
 #~ msgstr "Grupo"
-
-#~ msgid "Channel"
-#~ msgstr "Canal"
 
 #, rust-format
 #~ msgid "Pinned message: {}"

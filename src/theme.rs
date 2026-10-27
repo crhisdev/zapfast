@@ -951,6 +951,7 @@ fastframe_icons::icons! {
         Play => lucide "play",
         Plus => lucide "plus",
         QrCode => "qr-code",
+        RadioTower => "radio-tower",
         Refresh => lucide "refresh-cw",
         RotateLeft => "rotate-ccw",
         RotateRight => "rotate-cw",
