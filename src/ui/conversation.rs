@@ -12,6 +12,7 @@ use egui::{
 use crate::animation;
 use crate::app::{App, Conversation, JumpHighlight, KeyScroll, RowHeight};
 use crate::geo::Spot;
+use crate::i18n::gettext;
 use crate::markup;
 use crate::model::{
     Action, Chat, ChatId, Content, Delivery, Dialog, LinkPreview, Media, MediaState, Message,
@@ -55,9 +56,15 @@ const MESSAGES_BUBBLE_MARGIN: Margin = Margin {
 const SELECT_BOX: f32 = 18.0;
 const SELECT_GUTTER: f32 = SELECT_BOX + 14.0;
 /// Footer label on an outgoing message that failed to send.
-const NOT_SENT: &str = "Not sent";
-const NOT_SENT_HINT: &str =
-    "This message could not be sent, and ZapFast will not retry it. Send it again yourself.";
+fn not_sent_label(locale: crate::i18n::Locale) -> String {
+    gettext(locale, "Not sent").into_owned()
+}
+fn not_sent_hint(locale: crate::i18n::Locale) -> std::borrow::Cow<'static, str> {
+    gettext(
+        locale,
+        "This message could not be sent, and ZapFast will not retry it. Send it again yourself.",
+    )
+}
 
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let Some(chat) = app.current_chat().cloned() else {
@@ -848,7 +855,7 @@ fn header(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> Rect {
                         let back_label = if app.page == crate::model::Page::Calls {
                             crate::i18n::gettext(app.locale, "Back to the calls").into_owned()
                         } else {
-                            "Back to chats".to_owned()
+                            gettext(app.locale, "Back to chats").into_owned()
                         };
                         let back = theme::icon_button(
                             ui,
@@ -897,11 +904,13 @@ fn subtitle(app: &App, chat: &Chat) -> (String, Color32) {
             let names: Vec<&str> = typing.iter().map(|(_, name)| name.as_str()).collect();
             match names.as_slice() {
                 [] => String::new(),
-                [one] => format!("{one} is typing…"),
-                [rest @ .., last] => format!("{} and {last} are typing…", rest.join(", ")),
+                [one] => gettext(app.locale, "{one} is typing…").replace("{one}", one),
+                [rest @ .., last] => gettext(app.locale, "{} and {last} are typing…")
+                    .replace("{last}", last)
+                    .replace("{}", &rest.join(", ")),
             }
         } else {
-            "typing…".to_owned()
+            gettext(app.locale, "typing…").into_owned()
         };
         return (text, palette.accent);
     }
@@ -909,7 +918,7 @@ fn subtitle(app: &App, chat: &Chat) -> (String, Color32) {
         let names = app.participant_names(chat);
         return (
             if names.is_empty() {
-                "Group".to_owned()
+                gettext(app.locale, "Group").into_owned()
             } else {
                 names
             },
@@ -918,7 +927,7 @@ fn subtitle(app: &App, chat: &Chat) -> (String, Color32) {
     }
     if let Some(presence) = app.presence.get(&chat.id) {
         if presence.online {
-            return ("online".to_owned(), palette.accent);
+            return (gettext(app.locale, "online").into_owned(), palette.accent);
         }
         if let Some(seen) = presence.last_seen {
             return (crate::util::last_seen(app.locale, seen), palette.secondary);
@@ -1406,12 +1415,10 @@ fn composer(app: &mut App, ui: &mut egui::Ui, chat: &Chat) {
                         ui.horizontal(|ui| {
                             let width = 230.0;
                             ui.add_space((ui.available_width() - width).max(0.0) / 2.0);
-                            theme::text(ui, "Only", theme::regular(13.5), palette.secondary);
-                            theme::text(ui, "admins", theme::semibold(13.5), palette.accent);
+                            theme::text(ui, gettext(app.locale, "Only"), theme::regular(13.5), palette.secondary);
+                            theme::text(ui, gettext(app.locale, "admins"), theme::semibold(13.5), palette.accent);
                             theme::text(
-                                ui,
-                                "can send messages",
-                                theme::regular(13.5),
+                                ui, gettext(app.locale, "can send messages"), theme::regular(13.5),
                                 palette.secondary,
                             );
                         });
@@ -1456,9 +1463,7 @@ fn composer(app: &mut App, ui: &mut egui::Ui, chat: &Chat) {
                                 });
                                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                                     if theme::icon_button(
-                                        ui, Icon::X, 16.0, palette.secondary, palette.text,
-                                        "Cancel reply (Esc)",
-                                    ).clicked() {
+                                        ui, Icon::X, 16.0, palette.secondary, palette.text, &gettext(app.locale, "Cancel reply (Esc)"), ).clicked() {
                                         app.actions.push(Action::CancelReply);
                                     }
                                 });
@@ -1591,9 +1596,7 @@ fn composer(app: &mut App, ui: &mut egui::Ui, chat: &Chat) {
                         } else {
                             palette.secondary
                         },
-                        palette.text,
-                        "Emoji, GIFs, and stickers",
-                    )).tab_stop(Stop::Emoji);
+                        palette.text, &gettext(app.locale, "Emoji, GIFs, and stickers"), )).tab_stop(Stop::Emoji);
                     app.picker_anchor = Some(smile.rect);
                     if smile.clicked() {
                         if app.composer_tools_open {
@@ -1742,7 +1745,7 @@ fn composer(app: &mut App, ui: &mut egui::Ui, chat: &Chat) {
                                     ui.ctx().request_discard("composer height changed");
                                 }
                                 let response = output.response.response.clone().tab_stop(Stop::Composer);
-                                ui.ctx().accesskit_node_builder(response.id, |node| node.set_label("Message"));
+                                ui.ctx().accesskit_node_builder(response.id, |node| node.set_label(gettext(app.locale, "Message")));
                                 if response.changed() {
                                     app.actions.push(Action::Composing {
                                         chat: chat.id.clone(),
@@ -1830,9 +1833,7 @@ fn composer(app: &mut App, ui: &mut egui::Ui, chat: &Chat) {
                         button_width,
                         fill,
                         hover,
-                        palette.secondary,
-                        "Record a voice message",
-                    )
+                        palette.secondary, &gettext(app.locale, "Record a voice message"), )
                     .tab_stop(Stop::Send)
                     .clicked()
                     {
@@ -1844,7 +1845,7 @@ fn composer(app: &mut App, ui: &mut egui::Ui, chat: &Chat) {
                     } else {
                         Icon::Send
                     };
-                    if theme::circle_button(ui, icon_kind, button_width, fill, hover, icon, "Send")
+                    if theme::circle_button(ui, icon_kind, button_width, fill, hover, icon, &gettext(app.locale, "Send"))
                         .tab_stop(Stop::Send)
                         .clicked()
                     {
@@ -2153,7 +2154,12 @@ fn edit_strip(app: &mut App, ui: &mut egui::Ui) {
         ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
             theme::icon(ui, Icon::Pencil, 16.0, palette.accent);
-            theme::text(ui, "Editing message", theme::semibold(12.5), palette.accent);
+            theme::text(
+                ui,
+                gettext(app.locale, "Editing message"),
+                theme::semibold(12.5),
+                palette.accent,
+            );
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if theme::icon_button(
                     ui,
@@ -2161,7 +2167,7 @@ fn edit_strip(app: &mut App, ui: &mut egui::Ui) {
                     16.0,
                     palette.secondary,
                     palette.text,
-                    "Stop editing (Esc)",
+                    &gettext(app.locale, "Stop editing (Esc)"),
                 )
                 .clicked()
                 {
@@ -2176,7 +2182,7 @@ fn edit_strip(app: &mut App, ui: &mut egui::Ui) {
 fn reply_strip(app: &mut App, ui: &mut egui::Ui, quoted: &Message) {
     let palette = app.palette;
     let who = if quoted.from_me {
-        "You".to_owned()
+        gettext(app.locale, "You").into_owned()
     } else {
         app.display_name_or(&quoted.sender, quoted.sender_name.as_deref())
     };
@@ -2191,7 +2197,7 @@ fn reply_strip(app: &mut App, ui: &mut egui::Ui, quoted: &Message) {
                 ui.set_max_width((ui.available_width() - 40.0).max(0.0));
                 widgets::rich_text(
                     ui,
-                    &format!("Replying to {who}"),
+                    &gettext(app.locale, "Replying to {who}").replace("{who}", &who),
                     theme::semibold(12.5),
                     palette.accent,
                 );
@@ -2204,7 +2210,7 @@ fn reply_strip(app: &mut App, ui: &mut egui::Ui, quoted: &Message) {
                     16.0,
                     palette.secondary,
                     palette.text,
-                    "Cancel reply (Esc)",
+                    &gettext(app.locale, "Cancel reply (Esc)"),
                 )
                 .clicked()
                 {
@@ -2905,7 +2911,7 @@ fn messages(app: &mut App, ui: &mut egui::Ui, chat: &Chat, under: f32) {
                     if under > 0.0 {
                         ui.add_space(under);
                     }
-                    top_of_history(ui, &palette, &conversation, chat, &mut actions);
+                    top_of_history(ui, app.locale, &palette, &conversation, chat, &mut actions);
                     let mut previous: Option<&Message> = None;
                     let mut day_separator_top = f32::NEG_INFINITY;
                     // The pin notices still to place, in time order. Each one
@@ -3822,7 +3828,7 @@ fn messages(app: &mut App, ui: &mut egui::Ui, chat: &Chat, under: f32) {
             palette.overlay,
             palette.surface_hover,
             palette.text,
-            "Newest message",
+            &gettext(app.locale, "Newest message"),
         )
         .clicked()
         {
@@ -3860,6 +3866,7 @@ fn floating_circle(ui: &egui::Ui, palette: &Palette, rect: Rect, hovered: bool) 
 /// Loading state above the oldest visible message.
 fn top_of_history(
     ui: &mut egui::Ui,
+    locale: crate::i18n::Locale,
     palette: &Palette,
     conversation: &Conversation,
     _chat: &Chat,
@@ -3879,7 +3886,7 @@ fn top_of_history(
                 theme::spinner(ui, 16.0, palette.accent);
                 theme::text(
                     ui,
-                    "Loading older messages from your phone…",
+                    gettext(locale, "Loading older messages from your phone…"),
                     theme::regular(12.5),
                     palette.secondary,
                 );
@@ -3887,9 +3894,13 @@ fn top_of_history(
         } else if conversation.messages.is_empty() {
             ui.add_space(24.0);
             if conversation.fetching_phone {
-                widgets::chip(ui, palette, "Loading messages from your phone…");
+                widgets::chip(
+                    ui,
+                    palette,
+                    &gettext(locale, "Loading messages from your phone…"),
+                );
             } else {
-                widgets::chip(ui, palette, "No messages here yet");
+                widgets::chip(ui, palette, &gettext(locale, "No messages here yet"));
             }
         } else {
             ui.add_space(6.0);
@@ -4025,11 +4036,11 @@ fn open_reaction_picker_action(chat: &str, message: &str) -> Action {
 
 /// The screen-reader label names whose message the hover control reacts to, so
 /// a user can tell the controls apart. The visual tooltip stays a short "React".
-fn reaction_button_label(from_me: bool, sender: &str) -> String {
+fn reaction_button_label(locale: crate::i18n::Locale, from_me: bool, sender: &str) -> String {
     if from_me {
-        "React to your message".to_owned()
+        gettext(locale, "React to your message").into_owned()
     } else {
-        format!("React to {sender}'s message")
+        gettext(locale, "React to {sender}'s message").replace("{sender}", sender)
     }
 }
 
@@ -4075,7 +4086,7 @@ fn reaction_affordance(
     // Acquire under the same layer as the bubble so the row strip keeps clicks.
     let response = ui.interact(rect, bubble.id.with("react"), Sense::click());
     let sender = (view.names_or)(&message.sender, message.sender_name.as_deref());
-    let label = reaction_button_label(message.from_me, &sender);
+    let label = reaction_button_label(view.locale, message.from_me, &sender);
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &label)
     });
@@ -4116,7 +4127,7 @@ fn reaction_affordance(
     }
     if response
         .on_hover_cursor(egui::CursorIcon::PointingHand)
-        .on_hover_text("React")
+        .on_hover_text(gettext(view.locale, "React"))
         .clicked()
     {
         actions.push(open_reaction_picker_action(&view.chat.id, &message.id));
@@ -4126,7 +4137,11 @@ fn reaction_affordance(
     }
     let reply = ui.interact(reply_rect, bubble.id.with("reply"), Sense::click());
     reply.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), "Reply")
+        egui::WidgetInfo::labeled(
+            egui::WidgetType::Button,
+            ui.is_enabled(),
+            gettext(view.locale, "Reply"),
+        )
     });
     theme::reveal_focus(&reply);
     if ui.is_rect_visible(reply_rect) && (reply.has_focus() || (uncovered && revealed)) {
@@ -4145,7 +4160,7 @@ fn reaction_affordance(
     }
     if reply
         .on_hover_cursor(egui::CursorIcon::PointingHand)
-        .on_hover_text("Reply")
+        .on_hover_text(gettext(view.locale, "Reply"))
         .clicked()
     {
         actions.push(Action::Reply(message.id.clone()));
@@ -4667,7 +4682,7 @@ fn speed_pill(
             egui::WidgetType::Button,
             ui.is_enabled(),
             active,
-            format!("Playback speed {label}"),
+            gettext(view.locale, "Playback speed {label}").replace("{label}", &label),
         )
     });
     theme::reveal_focus(&response);
@@ -4884,7 +4899,9 @@ fn bubble_frame(
             // Reserve the label's line now and paint it once the contents
             // are measured, at their start: an own bubble lays out from the
             // right, and its width is known only then.
-            let forwarded = message.forwarded.then(|| forwarded_label(ui, &palette));
+            let forwarded = message
+                .forwarded
+                .then(|| forwarded_label(ui, &palette, view.locale));
             // Cards share the bubble's settled width: at least CARD_WIDTH and
             // no more than the cap. Text spans that width and stays left-aligned.
             // Bubbles without cards use the natural text width.
@@ -4902,7 +4919,7 @@ fn bubble_frame(
             // An album's footer is its last member's, marks included.
             let starred = view.starred.is_some_and(|ids| ids.contains(&last.id));
             let pinned = view.pins.is_some_and(|ids| ids.contains(&last.id));
-            let reserve = footer_width(ui, last, starred, pinned);
+            let reserve = footer_width(ui, view.locale, last, starred, pinned);
             let settled = album
                 .map(|_| CARD_WIDTH.min(cap))
                 .or_else(|| settled_width(ui, view, message, cap));
@@ -5212,7 +5229,7 @@ fn natural_text_width(ui: &egui::Ui, view: &View<'_>, message: &Message, cap: f3
     let last = laid.galley.rows.last().map_or(0.0, |row| row.row.size.x);
     let starred = view.starred.is_some_and(|ids| ids.contains(&message.id));
     let pinned = view.pins.is_some_and(|ids| ids.contains(&message.id));
-    let reserve = footer_width(ui, message, starred, pinned);
+    let reserve = footer_width(ui, view.locale, message, starred, pinned);
     Some(if last + 8.0 + reserve <= cap {
         widest.max(last + 8.0 + reserve)
     } else {
@@ -5285,7 +5302,7 @@ fn quote_block(
 ) {
     let palette = view.palette;
     let mine = quotes_me(view, quoted);
-    let who = quoted_sender_name(view, quoted, "You");
+    let who = quoted_sender_name(view, quoted, &gettext(view.locale, "You"));
     let summary = markup::plain(
         &quoted.summary_in(view.locale),
         &quote_mentions(view, quoted),
@@ -5508,10 +5525,14 @@ const FORWARDED_HEIGHT: f32 = 15.0;
 /// Reserves the line for a forwarded message's label at the top of its
 /// bubble and returns that space with the laid-out word, for
 /// [`paint_forwarded_label`] once the bubble's contents are measured.
-fn forwarded_label(ui: &mut egui::Ui, palette: &Palette) -> (Rect, std::sync::Arc<egui::Galley>) {
+fn forwarded_label(
+    ui: &mut egui::Ui,
+    palette: &Palette,
+    locale: crate::i18n::Locale,
+) -> (Rect, std::sync::Arc<egui::Galley>) {
     let mut job = egui::text::LayoutJob::default();
     job.append(
-        "Forwarded",
+        &gettext(locale, "Forwarded"),
         0.0,
         egui::TextFormat {
             font_id: theme::regular(12.5),
@@ -5524,7 +5545,9 @@ fn forwarded_label(ui: &mut egui::Ui, palette: &Palette) -> (Rect, std::sync::Ar
     let width = FORWARDED_ICON + FORWARDED_GAP + galley.size().x;
     let (reserved, response) =
         ui.allocate_exact_size(vec2(width, FORWARDED_HEIGHT), Sense::hover());
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Label, true, "Forwarded"));
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Label, true, gettext(locale, "Forwarded"))
+    });
     // Sit closer to what follows than the bubble's usual spacing.
     ui.add_space(-1.0);
     (reserved, galley)
@@ -5583,12 +5606,18 @@ fn clock_width(ui: &egui::Ui, message: &Message) -> f32 {
 }
 
 /// Width of the message footer, including the room its marks take.
-fn footer_width(ui: &egui::Ui, message: &Message, starred: bool, pinned: bool) -> f32 {
+fn footer_width(
+    ui: &egui::Ui,
+    locale: crate::i18n::Locale,
+    message: &Message,
+    starred: bool,
+    pinned: bool,
+) -> f32 {
     let font = theme::regular(11.0);
     let time = clock_width(ui, message);
     let edited = if message.edited {
         ui.painter()
-            .layout_no_wrap("edited".to_owned(), font, Color32::WHITE)
+            .layout_no_wrap(gettext(locale, "edited").into_owned(), font, Color32::WHITE)
             .size()
             .x
             + 4.0
@@ -5597,7 +5626,7 @@ fn footer_width(ui: &egui::Ui, message: &Message, starred: bool, pinned: bool) -
     };
     let not_sent = if not_sent(message) {
         ui.painter()
-            .layout_no_wrap(NOT_SENT.to_owned(), theme::medium(11.0), Color32::WHITE)
+            .layout_no_wrap(not_sent_label(locale), theme::medium(11.0), Color32::WHITE)
             .size()
             .x
             + 6.0
@@ -5687,8 +5716,11 @@ fn footer_over_picture(
         ui.painter()
             .layout_no_wrap(crate::util::clock(message.timestamp), font, Color32::WHITE);
     let failed = not_sent(message).then(|| {
-        ui.painter()
-            .layout_no_wrap(NOT_SENT.to_owned(), theme::medium(11.0), Color32::WHITE)
+        ui.painter().layout_no_wrap(
+            not_sent_label(view.locale),
+            theme::medium(11.0),
+            Color32::WHITE,
+        )
     });
     let tick_width = if message.from_me { 19.0 } else { 0.0 };
     let marks =
@@ -5744,9 +5776,9 @@ fn footer_over_picture(
             Sense::hover(),
         );
         response.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::WidgetType::Label, true, NOT_SENT_HINT)
+            egui::WidgetInfo::labeled(egui::WidgetType::Label, true, not_sent_hint(view.locale))
         });
-        response.on_hover_text(NOT_SENT_HINT);
+        response.on_hover_text(not_sent_hint(view.locale));
     }
     if pinned {
         x -= FOOTER_MARK_SLOT;
@@ -5845,15 +5877,21 @@ fn footer(
         palette.secondary,
     );
     let edited = message.edited.then(|| {
-        ui.painter()
-            .layout_no_wrap("edited".to_owned(), font, palette.dim)
+        ui.painter().layout_no_wrap(
+            gettext(view.locale, "edited").into_owned(),
+            font,
+            palette.dim,
+        )
     });
     // A red dot alone does not say what went wrong or what to do. The word
     // uses the text colour: the danger red on an outgoing bubble is too faint
     // to read, and the red icon beside it already carries the alarm.
     let failed = not_sent(message).then(|| {
-        ui.painter()
-            .layout_no_wrap(NOT_SENT.to_owned(), theme::medium(11.0), palette.text)
+        ui.painter().layout_no_wrap(
+            not_sent_label(view.locale),
+            theme::medium(11.0),
+            palette.text,
+        )
     });
     let tick_width = if message.from_me { 19.0 } else { 0.0 };
     let width = time.size().x
@@ -5929,9 +5967,9 @@ fn footer(
             Sense::hover(),
         );
         response.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::WidgetType::Label, true, NOT_SENT_HINT)
+            egui::WidgetInfo::labeled(egui::WidgetType::Label, true, not_sent_hint(view.locale))
         });
-        response.on_hover_text(NOT_SENT_HINT);
+        response.on_hover_text(not_sent_hint(view.locale));
     }
     if starred {
         x -= FOOTER_MARK_SLOT;
@@ -5953,7 +5991,7 @@ fn reactions(ui: &mut egui::Ui, view: &View<'_>, message: &Message, actions: &mu
     let mut counts: Vec<(String, u32, bool, Vec<String>)> = Vec::new();
     for reaction in &message.reactions {
         let who = if reaction.from_me {
-            "You".to_owned()
+            gettext(view.locale, "You").into_owned()
         } else {
             (view.names_or)(&reaction.sender, None)
         };
@@ -6887,8 +6925,9 @@ fn content(
                     return None;
                 }
             }
+            let fallback = gettext(view.locale, "Interactive message");
             let body = if card.body.is_empty() {
-                "Interactive message"
+                fallback.as_ref()
             } else {
                 &card.body
             };
@@ -6996,10 +7035,15 @@ fn content(
         } => {
             let mut detail = Vec::new();
             if let Some(pages) = pages {
-                detail.push(format!(
-                    "{pages} page{}",
-                    if *pages == 1 { "" } else { "s" }
-                ));
+                detail.push(
+                    crate::i18n::ngettext(
+                        view.locale,
+                        "{pages} page",
+                        "{pages} pages",
+                        (*pages).try_into().unwrap_or(u32::MAX),
+                    )
+                    .replace("{pages}", &pages.to_string()),
+                );
             }
             detail.push(crate::util::bytes(media.size));
             attachment(
@@ -7282,7 +7326,7 @@ fn content(
                 |ui| {
                     theme::text(
                         ui,
-                        "This message was deleted",
+                        gettext(view.locale, "This message was deleted"),
                         theme::regular(13.5),
                         palette.secondary,
                     );
@@ -7373,7 +7417,8 @@ fn content(
                 |ui| {
                     theme::text(
                         ui,
-                        format!("Unsupported: {what}"),
+                        gettext(view.locale, "Unsupported: {what}")
+                            .replace("{what}", &crate::i18n::localize(view.locale, what)),
                         theme::regular(13.5),
                         palette.secondary,
                     );
@@ -7504,6 +7549,7 @@ fn carousel(
                         Rect::from_center_size(pos2(x, visible.center().y), Vec2::splat(40.0));
                     let arrow = carousel_arrow(
                         ui,
+                        view.locale,
                         &view.palette,
                         rect,
                         id.with(("carousel-arrow", direction)),
@@ -7555,18 +7601,19 @@ fn carousel_row(message: &Message, index: usize, card: &crate::model::Interactiv
 
 fn carousel_arrow(
     ui: &mut egui::Ui,
+    locale: crate::i18n::Locale,
     palette: &Palette,
     rect: Rect,
     id: egui::Id,
     previous: bool,
 ) -> egui::Response {
     let label = if previous {
-        "Previous card"
+        gettext(locale, "Previous card")
     } else {
-        "Next card"
+        gettext(locale, "Next card")
     };
     let response = ui.interact(rect, id, Sense::click());
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &label));
     ui.ctx().data_mut(|data| data.insert_temp(id, rect));
     theme::reveal_focus(&response);
     if ui.is_rect_visible(rect) {
@@ -7746,15 +7793,16 @@ fn album_tile(
     let media = message.content.media()?;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     let kind = if matches!(message.content, Content::Image { .. }) {
-        "Photo"
+        gettext(view.locale, "Photo")
     } else {
-        "Video"
+        gettext(view.locale, "Video")
     };
     let state = match (&media.path, &media.state) {
-        (Some(_), _) => "Open".to_owned(),
-        (None, MediaState::Downloading) => "Downloading".to_owned(),
-        (None, MediaState::Failed(error)) => format!("Failed: {error}"),
-        (None, MediaState::Idle) => "Download".to_owned(),
+        (Some(_), _) => gettext(view.locale, "Open").into_owned(),
+        (None, MediaState::Downloading) => gettext(view.locale, "Downloading").into_owned(),
+        (None, MediaState::Failed(error)) => gettext(view.locale, "Failed: {error}")
+            .replace("{error}", &crate::i18n::localize(view.locale, error)),
+        (None, MediaState::Idle) => gettext(view.locale, "Download").into_owned(),
     };
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, true, format!("{kind}, {state}"))
@@ -7841,7 +7889,10 @@ fn album_tile(
     // Each member keeps its own failure: the others stay usable, and a click
     // on this one retries it.
     let response = if let MediaState::Failed(error) = &media.state {
-        response.on_hover_text(format!("{error} · Click to retry"))
+        response.on_hover_text(
+            gettext(view.locale, "{error} · Click to retry")
+                .replace("{error}", &crate::i18n::localize(view.locale, error)),
+        )
     } else {
         response
     };
@@ -7894,12 +7945,12 @@ fn carousel_picture(
     let size = vec2(width, width * 0.56);
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     let label = match (&media.path, &media.state) {
-        (Some(_), _) => "Open card image",
-        (None, MediaState::Failed(_)) => "Retry card image download",
-        (None, MediaState::Downloading) => "Downloading card image",
-        (None, MediaState::Idle) => "Download card image",
+        (Some(_), _) => gettext(view.locale, "Open card image"),
+        (None, MediaState::Failed(_)) => gettext(view.locale, "Retry card image download"),
+        (None, MediaState::Downloading) => gettext(view.locale, "Downloading card image"),
+        (None, MediaState::Idle) => gettext(view.locale, "Download card image"),
     };
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &label));
     // Tab can land on a card scrolled out of the carousel's viewport.
     theme::reveal_focus(&response);
     let visible = ui.is_rect_visible(rect);
@@ -7951,7 +8002,10 @@ fn carousel_picture(
                 ui.painter().text(
                     rect.center() + vec2(0.0, 24.0),
                     Align2::CENTER_CENTER,
-                    "Could not display this picture. Click to open it.",
+                    gettext(
+                        view.locale,
+                        "Could not display this picture. Click to open it.",
+                    ),
                     theme::regular(11.5),
                     view.palette.secondary,
                 );
@@ -7968,7 +8022,7 @@ fn carousel_picture(
                     ui.painter().text(
                         rect.center() + vec2(0.0, 34.0),
                         Align2::CENTER_CENTER,
-                        "Download failed. Click to retry.",
+                        gettext(view.locale, "Download failed. Click to retry."),
                         theme::regular(11.5),
                         Color32::WHITE,
                     );
@@ -7990,7 +8044,10 @@ fn carousel_picture(
     let response = response.on_hover_cursor(egui::CursorIcon::PointingHand);
     let clicked = response.clicked();
     if let MediaState::Failed(error) = &media.state {
-        response.on_hover_text(format!("{error} · Click to retry"));
+        response.on_hover_text(
+            gettext(view.locale, "{error} · Click to retry")
+                .replace("{error}", &crate::i18n::localize(view.locale, error)),
+        );
     }
     if let Some(path) = &media.path {
         if clicked {
@@ -8177,15 +8234,18 @@ fn interactive_buttons(
                     .interactive_pending
                     .contains(&(message.chat.clone(), message.id.clone()))
             {
-                "Sending reply…"
+                gettext(view.locale, "Sending reply…")
             } else if sends && !view.connected {
-                "Connect to WhatsApp to reply"
+                gettext(view.locale, "Connect to WhatsApp to reply")
             } else if sends && !view.chat.can_send() {
-                "This conversation is read-only"
+                gettext(view.locale, "This conversation is read-only")
             } else if sends && message.from_me {
-                "Reply options are for the recipient"
+                gettext(view.locale, "Reply options are for the recipient")
             } else {
-                "Open this option in WhatsApp Web or on your phone"
+                gettext(
+                    view.locale,
+                    "Open this option in WhatsApp Web or on your phone",
+                )
             };
             response.on_hover_text(format!("{}\n{reason}", button.label));
         } else if let Some(url) = &button.url {
@@ -8201,14 +8261,19 @@ fn interactive_buttons(
             match &button.action {
                 InteractiveAction::Reply => {
                     if response
-                        .on_hover_text(format!("Send reply: {}", button.label))
+                        .on_hover_text(
+                            gettext(view.locale, "Send reply: {}").replace("{}", &button.label),
+                        )
                         .clicked()
                     {
                         actions.push(reply(None));
                     }
                 }
                 InteractiveAction::Copy(code) => {
-                    if response.on_hover_text("Copy code").clicked() {
+                    if response
+                        .on_hover_text(gettext(view.locale, "Copy code"))
+                        .clicked()
+                    {
                         actions.push(Action::CopyText(code.clone()));
                     }
                 }
@@ -8229,7 +8294,7 @@ fn interactive_buttons(
         ui.add_space(6.0);
         widgets::rich_text(
             ui,
-            "More content in WhatsApp Web or on your phone",
+            &gettext(view.locale, "More content in WhatsApp Web or on your phone"),
             theme::regular(12.0),
             palette.secondary,
         );
@@ -8872,7 +8937,10 @@ fn picture(
                     ui.painter().text(
                         rect.center() + vec2(0.0, 24.0),
                         Align2::CENTER_CENTER,
-                        "Could not display this picture. Click to open it.",
+                        gettext(
+                            view.locale,
+                            "Could not display this picture. Click to open it.",
+                        ),
                         theme::regular(11.5),
                         palette.secondary,
                     );
@@ -8919,7 +8987,7 @@ fn picture(
                 ui.painter().text(
                     rect.center() + vec2(0.0, 34.0),
                     Align2::CENTER_CENTER,
-                    "Download failed. Click to retry.",
+                    gettext(view.locale, "Download failed. Click to retry."),
                     theme::regular(11.5),
                     Color32::WHITE,
                 );
@@ -9042,7 +9110,7 @@ fn motion_clip(
         None => theme::paint_spinner(ui, badge, 16.0, Color32::WHITE),
     }
     if let MediaState::Failed(error) = &motion.state {
-        response.on_hover_text(error);
+        response.on_hover_text(crate::i18n::localize(view.locale, error));
     }
 }
 
@@ -9083,7 +9151,11 @@ fn video(
     // here, so its first frame stands in. Without either, it is a file card.
     let thumbnail = message.thumbnail.as_deref();
     if thumbnail.is_none() && media.path.is_none() {
-        let title = if gif { "GIF" } else { "Video" };
+        let title = if gif {
+            "GIF".into()
+        } else {
+            gettext(view.locale, "Video")
+        };
         let mut detail = Vec::new();
         if let Some(seconds) = seconds {
             detail.push(crate::util::duration(seconds));
@@ -9095,7 +9167,7 @@ fn video(
             message,
             media,
             Icon::Video,
-            title,
+            &title,
             &detail.join(" · "),
             width,
             actions,
@@ -9744,7 +9816,10 @@ fn attachment(
                     ui.set_width((card - 70.0).max(0.0));
                     widgets::rich_text(ui, title, theme::medium(14.0), palette.text);
                     let detail = match &media.state {
-                        MediaState::Failed(error) => format!("{error}. Click to retry."),
+                        MediaState::Failed(error) => {
+                            gettext(view.locale, "{error}. Click to retry.")
+                                .replace("{error}", &crate::i18n::localize(view.locale, error))
+                        }
                         _ => detail.to_owned(),
                     };
                     theme::text(ui, detail, theme::regular(12.0), palette.secondary);
@@ -9882,7 +9957,7 @@ fn voice_player(
                         fill,
                         hover,
                         palette.accent,
-                        "Download",
+                        &gettext(view.locale, "Download"),
                     )
                     .clicked()
                     {
@@ -9898,9 +9973,9 @@ fn voice_player(
                     State::Loading => waiting(ui),
                     State::Playing | State::Paused | State::Idle => {
                         let (icon, tooltip) = if status.state == State::Playing {
-                            (Icon::Pause, "Pause")
+                            (Icon::Pause, gettext(view.locale, "Pause"))
                         } else {
-                            (Icon::Play, "Play")
+                            (Icon::Play, gettext(view.locale, "Play"))
                         };
                         if theme::circle_button(
                             ui,
@@ -9909,7 +9984,7 @@ fn voice_player(
                             fill,
                             hover,
                             palette.accent,
-                            tooltip,
+                            &tooltip,
                         )
                         .clicked()
                         {
@@ -10014,9 +10089,11 @@ fn voice_player(
                         .unwrap_or_else(|| crate::util::bytes(media.size)),
                 };
                 let (text, font) = match &media.state {
-                    MediaState::Failed(error) => {
-                        (format!("{error}. Click to retry."), theme::regular(11.5))
-                    }
+                    MediaState::Failed(error) => (
+                        gettext(view.locale, "{error}. Click to retry.")
+                            .replace("{error}", &crate::i18n::localize(view.locale, error)),
+                        theme::regular(11.5),
+                    ),
                     _ => (
                         shown,
                         theme::tabular(fastframe_fonts::Weight::Regular, 11.5),
@@ -10093,9 +10170,9 @@ fn voice_player(
                     ));
                 }
                 response.on_hover_text(if preparing {
-                    "Preparing playback speed"
+                    gettext(view.locale, "Preparing playback speed")
                 } else {
-                    "Playback speed. Right-click for every speed."
+                    gettext(view.locale, "Playback speed. Right-click for every speed.")
                 });
             }
         },
@@ -10157,7 +10234,7 @@ fn recording_strip(app: &mut App, ui: &mut egui::Ui) {
                 palette.surface,
                 palette.surface_hover,
                 palette.secondary,
-                "Discard",
+                &gettext(app.locale, "Discard"),
             )
             .clicked()
             {
@@ -10204,7 +10281,7 @@ fn recording_strip(app: &mut App, ui: &mut egui::Ui) {
                 palette.accent,
                 palette.accent_hover,
                 palette.on_accent,
-                "Send",
+                &gettext(app.locale, "Send"),
             )
             .clicked()
             {
@@ -10799,9 +10876,12 @@ mod tests {
 
     #[test]
     fn reaction_button_label_names_whose_message_it_reacts_to() {
-        assert_eq!(reaction_button_label(true, "Ada"), "React to your message");
         assert_eq!(
-            reaction_button_label(false, "Ada"),
+            reaction_button_label(crate::i18n::Locale::English, true, "Ada"),
+            "React to your message"
+        );
+        assert_eq!(
+            reaction_button_label(crate::i18n::Locale::English, false, "Ada"),
             "React to Ada's message"
         );
     }
@@ -11062,9 +11142,9 @@ mod tests {
             |ui| {
                 let message = crate::archive::tests::message("1@s.whatsapp.net", "m1", 0, false);
                 clock = clock_width(ui, &message);
-                plain = footer_width(ui, &message, false, false);
-                pinned = footer_width(ui, &message, false, true);
-                both = footer_width(ui, &message, true, true);
+                plain = footer_width(ui, crate::i18n::Locale::English, &message, false, false);
+                pinned = footer_width(ui, crate::i18n::Locale::English, &message, false, true);
+                both = footer_width(ui, crate::i18n::Locale::English, &message, true, true);
             },
         );
         output.textures_delta.clear();
@@ -11147,9 +11227,9 @@ mod tests {
                 let from_them = crate::archive::tests::message("1@s.whatsapp.net", "m1", 0, false);
                 let from_me = crate::archive::tests::message("1@s.whatsapp.net", "m1", 0, true);
                 clock = clock_width(ui, &from_them);
-                incoming = footer_width(ui, &from_them, false, false);
-                starred = footer_width(ui, &from_them, true, false);
-                own = footer_width(ui, &from_me, false, false);
+                incoming = footer_width(ui, crate::i18n::Locale::English, &from_them, false, false);
+                starred = footer_width(ui, crate::i18n::Locale::English, &from_them, true, false);
+                own = footer_width(ui, crate::i18n::Locale::English, &from_me, false, false);
             },
         );
         output.textures_delta.clear();
@@ -11324,12 +11404,26 @@ mod tests {
         };
         let mut widths = Vec::new();
         let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
-            widths.push(footer_width(ui, &message, false, false));
+            widths.push(footer_width(
+                ui,
+                crate::i18n::Locale::English,
+                &message,
+                false,
+                false,
+            ));
             message.status = Delivery::Failed;
-            widths.push(footer_width(ui, &message, false, false));
+            widths.push(footer_width(
+                ui,
+                crate::i18n::Locale::English,
+                &message,
+                false,
+                false,
+            ));
             // Only our own messages can fail to send.
             message.from_me = false;
-            widths.push(footer_width(ui, &message, false, false) + 19.0);
+            widths.push(
+                footer_width(ui, crate::i18n::Locale::English, &message, false, false) + 19.0,
+            );
         });
         output.textures_delta.clear();
         assert!(widths[1] > widths[0] + 30.0, "{widths:?}");

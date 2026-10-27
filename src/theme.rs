@@ -35,25 +35,25 @@ pub fn presets() -> impl Iterator<Item = CustomTheme> {
 pub fn theme_status(status: fastframe_theme::Status) -> &'static str {
     use fastframe_theme::{Problem, Status};
     match status {
-        Status::Loading => "Loading local themes…",
-        Status::SelectedUnavailable => {
-            "The selected theme is unavailable. Keeping the last usable appearance. See the log for details."
-        }
-        Status::Problem(Problem::Unreadable) => {
-            "The themes folder could not be read. See the log for details."
-        }
-        Status::Problem(Problem::TooManyEntries) => {
-            "The themes folder has more than 512 entries. Keep fewer files there to list the custom palettes."
-        }
-        Status::Problem(Problem::TooManyThemes) => {
-            "Only 128 custom palettes can be listed. Keep fewer JSON files in the themes folder to see the rest."
-        }
-        Status::Problem(Problem::OmarchyUnreadable) => {
-            "The Omarchy palette could not be loaded. Keeping the last usable appearance. See the log for details."
-        }
-        Status::Problem(Problem::LoaderFailed | _) => {
-            "Custom themes could not be loaded. Run zapfast reload-themes to try again."
-        }
+        Status::Loading => crate::i18n::gettext_noop("Loading local themes…"),
+        Status::SelectedUnavailable => crate::i18n::gettext_noop(
+            "The selected theme is unavailable. Keeping the last usable appearance. See the log for details.",
+        ),
+        Status::Problem(Problem::Unreadable) => crate::i18n::gettext_noop(
+            "The themes folder could not be read. See the log for details.",
+        ),
+        Status::Problem(Problem::TooManyEntries) => crate::i18n::gettext_noop(
+            "The themes folder has more than 512 entries. Keep fewer files there to list the custom palettes.",
+        ),
+        Status::Problem(Problem::TooManyThemes) => crate::i18n::gettext_noop(
+            "Only 128 custom palettes can be listed. Keep fewer JSON files in the themes folder to see the rest.",
+        ),
+        Status::Problem(Problem::OmarchyUnreadable) => crate::i18n::gettext_noop(
+            "The Omarchy palette could not be loaded. Keeping the last usable appearance. See the log for details.",
+        ),
+        Status::Problem(Problem::LoaderFailed | _) => crate::i18n::gettext_noop(
+            "Custom themes could not be loaded. Run zapfast reload-themes to try again.",
+        ),
     }
 }
 

@@ -15,7 +15,9 @@ impl Worker {
         let Some(client) = self.client.clone() else {
             self.emit(Event::InvitePreview {
                 code,
-                result: Err("ZapFast is not connected to WhatsApp".to_owned()),
+                result: Err(
+                    crate::i18n::gettext_noop("ZapFast is not connected to WhatsApp").to_owned(),
+                ),
             });
             return;
         };
@@ -44,7 +46,9 @@ impl Worker {
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&id)) else {
             self.emit(Event::InviteJoined {
                 code,
-                result: Err("ZapFast is not connected to WhatsApp".to_owned()),
+                result: Err(
+                    crate::i18n::gettext_noop("ZapFast is not connected to WhatsApp").to_owned(),
+                ),
             });
             return;
         };

@@ -825,56 +825,118 @@ const MESSAGES_KEYS: &str = if cfg!(target_os = "macos") {
 
 /// Shortcuts shown in the help dialog.
 pub const SHORTCUTS: &[(&str, &str)] = &[
-    ("Ctrl+K / Ctrl+Shift+F", "Search chats"),
-    ("Ctrl+F", "Search the open chat or the settings"),
+    (
+        "Ctrl+K / Ctrl+Shift+F",
+        crate::i18n::gettext_noop("Search chats"),
+    ),
+    (
+        "Ctrl+F",
+        crate::i18n::gettext_noop("Search the open chat or the settings"),
+    ),
     (
         "↑ / ↓, Enter",
-        "Walk the open chat's search results and jump to one",
+        crate::i18n::gettext_noop("Walk the open chat's search results and jump to one"),
     ),
-    ("Ctrl+L", "Focus the message input"),
-    ("Alt+↑ / Alt+↓", "Previous / next chat"),
-    ("Ctrl+Shift+[ / ]", "Previous / next chat, as in WhatsApp"),
-    ("Ctrl+1..9", "Open a chat by its position in the chat list"),
-    ("Ctrl+Shift+1", "Chats"),
-    ("Ctrl+Shift+2", "Calls"),
-    ("Ctrl+Shift+3", "Channels"),
-    ("↑", "Edit the previous message (when the input is empty)"),
-    ("Enter", "Send (Shift+Enter for a new line)"),
+    (
+        "Ctrl+L",
+        crate::i18n::gettext_noop("Focus the message input"),
+    ),
+    (
+        "Alt+↑ / Alt+↓",
+        crate::i18n::gettext_noop("Previous / next chat"),
+    ),
+    (
+        "Ctrl+Shift+[ / ]",
+        crate::i18n::gettext_noop("Previous / next chat, as in WhatsApp"),
+    ),
+    (
+        "Ctrl+1..9",
+        crate::i18n::gettext_noop("Open a chat by its position in the chat list"),
+    ),
+    ("Ctrl+Shift+1", crate::i18n::gettext_noop("Chats")),
+    ("Ctrl+Shift+2", crate::i18n::gettext_noop("Calls")),
+    (
+        "↑",
+        crate::i18n::gettext_noop("Edit the previous message (when the input is empty)"),
+    ),
+    (
+        "Enter",
+        crate::i18n::gettext_noop("Send (Shift+Enter for a new line)"),
+    ),
+    ("Ctrl+Shift+3", crate::i18n::gettext_noop("Channels")),
     (
         "Escape",
-        "Dismiss the current action, return from search, Calls or Starred, or close the chat",
+        crate::i18n::gettext_noop(
+            "Dismiss the current action, return from search, Calls or Starred, or close the chat",
+        ),
     ),
-    ("Ctrl+N", "New chat or message yourself"),
-    ("Ctrl+E", "Archive or unarchive the open chat"),
-    ("Ctrl+Shift+A", "Switch to the next linked number"),
+    (
+        "Ctrl+N",
+        crate::i18n::gettext_noop("New chat or message yourself"),
+    ),
+    (
+        "Ctrl+E",
+        crate::i18n::gettext_noop("Archive or unarchive the open chat"),
+    ),
+    (
+        "Ctrl+Shift+A",
+        crate::i18n::gettext_noop("Switch to the next linked number"),
+    ),
     (
         "Ctrl+V",
-        "Paste text, or stage a picture from the clipboard",
+        crate::i18n::gettext_noop("Paste text, or stage a picture from the clipboard"),
     ),
-    ("Ctrl+C", "Copy the selected messages"),
-    ("Ctrl+B", "Collapse or expand the chat list"),
+    (
+        "Ctrl+C",
+        crate::i18n::gettext_noop("Copy the selected messages"),
+    ),
+    (
+        "Ctrl+B",
+        crate::i18n::gettext_noop("Collapse or expand the chat list"),
+    ),
     (
         "Ctrl+End",
-        "Jump to the newest message (when the input is empty)",
+        crate::i18n::gettext_noop("Jump to the newest message (when the input is empty)"),
     ),
-    (MESSAGES_KEYS, "Go to the message list"),
+    (
+        MESSAGES_KEYS,
+        crate::i18n::gettext_noop("Go to the message list"),
+    ),
     (
         "↑ / ↓, Home / End, PgUp / PgDn",
-        "Move through messages (in the message list)",
+        crate::i18n::gettext_noop("Move through messages (in the message list)"),
     ),
-    ("PgUp / PgDn", "Scroll the open chat by a page"),
+    (
+        "PgUp / PgDn",
+        crate::i18n::gettext_noop("Scroll the open chat by a page"),
+    ),
     (
         "Home / End",
-        "Top / bottom of the open chat (when the input is empty)",
+        crate::i18n::gettext_noop("Top / bottom of the open chat (when the input is empty)"),
     ),
-    ("Ctrl+,", "Settings"),
-    ("Ctrl++ / Ctrl+-", "Zoom in / out"),
-    ("Ctrl+0", "Reset zoom"),
-    ("← / →", "Previous / next item in the media viewer"),
-    ("? / Ctrl+/", "Keyboard shortcuts (? when not typing)"),
-    ("Ctrl+Shift+L", "Lock ZapFast (with an app lock password)"),
-    ("Ctrl+W", "Close the window (ZapFast remains in the tray)"),
-    ("Ctrl+Q", "Quit"),
+    ("Ctrl+,", crate::i18n::gettext_noop("Settings")),
+    (
+        "Ctrl++ / Ctrl+-",
+        crate::i18n::gettext_noop("Zoom in / out"),
+    ),
+    ("Ctrl+0", crate::i18n::gettext_noop("Reset zoom")),
+    (
+        "← / →",
+        crate::i18n::gettext_noop("Previous / next item in the media viewer"),
+    ),
+    (
+        "? / Ctrl+/",
+        crate::i18n::gettext_noop("Keyboard shortcuts (? when not typing)"),
+    ),
+    (
+        "Ctrl+Shift+L",
+        crate::i18n::gettext_noop("Lock ZapFast (with an app lock password)"),
+    ),
+    (
+        "Ctrl+W",
+        crate::i18n::gettext_noop("Close the window (ZapFast remains in the tray)"),
+    ),
+    ("Ctrl+Q", crate::i18n::gettext_noop("Quit")),
 ];
 
 /// Uses Command and Option labels on macOS.

@@ -623,7 +623,7 @@ fn forward(app: &mut App, ui: &mut egui::Ui, messages: &[String]) {
         &palette,
         egui::Id::new("forward-search"),
         &mut app.forward_search,
-        "Search chats",
+        &crate::i18n::gettext(app.locale, "Search chats"),
         width,
     );
     if ui.memory(|memory| memory.focused().is_none()) {
@@ -736,7 +736,7 @@ fn forward(app: &mut App, ui: &mut egui::Ui, messages: &[String]) {
             if chats.is_empty() {
                 theme::text(
                     ui,
-                    "No writable chats found",
+                    crate::i18n::gettext(app.locale, "No writable chats found"),
                     theme::regular(13.5),
                     palette.secondary,
                 );
@@ -937,6 +937,7 @@ fn shortcut_row(
 
 fn shortcuts(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
+    let locale = app.locale;
     title(
         ui,
         app,
@@ -979,7 +980,13 @@ fn shortcuts(app: &mut App, ui: &mut egui::Ui) {
                             ui.set_width(column);
                             ui.spacing_mut().item_spacing = vec2(18.0, 8.0);
                             for (keys, what) in rows {
-                                shortcut_row(ui, &palette, keys_width, keys, what);
+                                shortcut_row(
+                                    ui,
+                                    &palette,
+                                    keys_width,
+                                    keys,
+                                    &crate::i18n::gettext(locale, what),
+                                );
                             }
                         },
                     );
@@ -1131,14 +1138,11 @@ fn join_group(app: &mut App, ui: &mut egui::Ui) {
             ui.horizontal(|ui| {
                 crate::motion::egui_spinner(ui);
                 ui.label(
-                    egui::RichText::new(crate::i18n::gettext(
-                        locale,
-                        if invite.channel {
-                            "Looking up the channel…"
-                        } else {
-                            "Looking up the group…"
-                        },
-                    ))
+                    egui::RichText::new(if invite.channel {
+                        crate::i18n::gettext(locale, "Looking up the channel…")
+                    } else {
+                        crate::i18n::gettext(locale, "Looking up the group…")
+                    })
                     .color(palette.secondary),
                 );
             });
@@ -1160,7 +1164,7 @@ fn join_group(app: &mut App, ui: &mut egui::Ui) {
                     locale,
                     "WhatsApp could not open this channel. Try again later.",
                 ),
-                _ => error.as_str().into(),
+                _ => crate::i18n::localize(locale, error).into(),
             };
             theme::paragraph(ui, error, theme::regular(13.5), palette.text);
             cancel_row(app, ui);
