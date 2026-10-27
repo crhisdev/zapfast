@@ -34,6 +34,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 Dialog::ConfirmLeaveGroup(_) => 380.0,
                 Dialog::PairWithPhone => 380.0,
                 Dialog::NewContact => 380.0,
+                Dialog::FollowChannel => 380.0,
                 Dialog::NewChat => 420.0,
                 Dialog::UnlockLockedChats | Dialog::ConfirmLockChat(_) => 380.0,
                 Dialog::ConfirmDeleteChat(_) | Dialog::JoinGroup | Dialog::ConfirmStartOver => {
@@ -84,6 +85,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 Dialog::ConfirmLeaveGroup(id) => confirm_leave_group(app, ui, &id),
                 Dialog::PairWithPhone => pair_with_phone(app, ui),
                 Dialog::NewContact => new_contact(app, ui),
+                Dialog::FollowChannel => follow_channel(app, ui),
                 Dialog::NewChat => new_chat(app, ui),
                 Dialog::UnlockLockedChats => unlock_locked_chats(app, ui),
                 Dialog::ConfirmLockChat(id) => confirm_lock_chat(app, ui, &id),
@@ -1117,21 +1119,49 @@ fn join_group(app: &mut App, ui: &mut egui::Ui) {
         app.actions.push(Action::CloseDialog);
         return;
     };
+    let locale = app.locale;
+    let heading = if invite.channel {
+        crate::i18n::gettext(locale, "Channel")
+    } else {
+        crate::i18n::gettext(locale, "Group invite")
+    };
     let (info, joining) = match &invite.state {
         InviteState::Loading => {
-            title(ui, app, &crate::i18n::gettext(app.locale, "Group invite"));
+            title(ui, app, &heading);
             ui.horizontal(|ui| {
                 crate::motion::egui_spinner(ui);
                 ui.label(
-                    egui::RichText::new(crate::i18n::gettext(app.locale, "Looking up the group…"))
-                        .color(palette.secondary),
+                    egui::RichText::new(crate::i18n::gettext(
+                        locale,
+                        if invite.channel {
+                            "Looking up the channel…"
+                        } else {
+                            "Looking up the group…"
+                        },
+                    ))
+                    .color(palette.secondary),
                 );
             });
             cancel_row(app, ui);
             return;
         }
         InviteState::Failed(error) => {
-            title(ui, app, &crate::i18n::gettext(app.locale, "Group invite"));
+            title(ui, app, &heading);
+            // The worker's channel errors are fixed sentences, so they are
+            // translated here, where the locale is known.
+            let error = match error.as_str() {
+                "This channel link is invalid or the channel no longer exists." => {
+                    crate::i18n::gettext(
+                        locale,
+                        "This channel link is invalid or the channel no longer exists.",
+                    )
+                }
+                "WhatsApp could not open this channel. Try again later." => crate::i18n::gettext(
+                    locale,
+                    "WhatsApp could not open this channel. Try again later.",
+                ),
+                _ => error.as_str().into(),
+            };
             theme::paragraph(ui, error, theme::regular(13.5), palette.text);
             cancel_row(app, ui);
             return;
@@ -1140,8 +1170,13 @@ fn join_group(app: &mut App, ui: &mut egui::Ui) {
         InviteState::Joining(info) => (info, true),
     };
     super::widgets::rich_text(ui, &info.subject, theme::semibold(17.0), palette.text);
-    let members = crate::i18n::ngettext(app.locale, "{} member", "{} members", info.members as u32)
-        .replace("{}", &info.members.to_string());
+    let count = u32::try_from(info.members).unwrap_or(u32::MAX);
+    let members = if invite.channel {
+        crate::i18n::ngettext(locale, "{} follower", "{} followers", count)
+    } else {
+        crate::i18n::ngettext(locale, "{} member", "{} members", count)
+    }
+    .replace("{}", &info.members.to_string());
     ui.label(egui::RichText::new(members).color(palette.secondary));
     if let Some(description) = &info.description {
         ui.add_space(4.0);
@@ -1151,13 +1186,13 @@ fn join_group(app: &mut App, ui: &mut egui::Ui) {
                 super::widgets::rich_text(ui, description, theme::regular(13.5), palette.text);
             });
     }
-    let member = app.chats.iter().any(|chat| chat.id == info.id);
+    let member = app.invite_target_known(&info.id, invite.channel);
     if info.approval && !member {
         ui.add_space(4.0);
         theme::paragraph(
             ui,
             crate::i18n::gettext(
-                app.locale,
+                locale,
                 "An admin must approve your request before you join.",
             ),
             theme::regular(13.0),
@@ -1167,15 +1202,17 @@ fn join_group(app: &mut App, ui: &mut egui::Ui) {
     ui.add_space(10.0);
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let label = match (member, info.approval) {
-                (true, _) => crate::i18n::gettext(app.locale, "Open chat"),
-                (false, true) => crate::i18n::gettext(app.locale, "Request to join"),
-                (false, false) => crate::i18n::gettext(app.locale, "Join group"),
+            let label = match (member, invite.channel, info.approval) {
+                (true, true, _) => crate::i18n::gettext(locale, "Open channel"),
+                (true, false, _) => crate::i18n::gettext(locale, "Open chat"),
+                (false, true, _) => crate::i18n::gettext(locale, "Follow channel"),
+                (false, false, true) => crate::i18n::gettext(locale, "Request to join"),
+                (false, false, false) => crate::i18n::gettext(locale, "Join group"),
             };
-            let button_text = if joining {
-                crate::i18n::gettext(app.locale, "Joining…")
-            } else {
-                label
+            let button_text = match (joining, invite.channel) {
+                (true, true) => crate::i18n::gettext(locale, "Following…"),
+                (true, false) => crate::i18n::gettext(locale, "Joining…"),
+                (false, _) => label,
             };
             let join = ui.add_enabled_ui(!joining, |ui| {
                 theme::pill_button(ui, &palette, &button_text, true)
@@ -1183,13 +1220,8 @@ fn join_group(app: &mut App, ui: &mut egui::Ui) {
             if join.inner.clicked() {
                 app.actions.push(Action::JoinGroup);
             }
-            if theme::pill_button(
-                ui,
-                &palette,
-                &crate::i18n::gettext(app.locale, "Cancel"),
-                false,
-            )
-            .clicked()
+            if theme::pill_button(ui, &palette, &crate::i18n::gettext(locale, "Cancel"), false)
+                .clicked()
             {
                 app.actions.push(Action::CloseDialog);
             }
@@ -1854,6 +1886,102 @@ fn pair_with_phone(app: &mut App, ui: &mut egui::Ui) {
             }
         });
     });
+}
+
+/// Takes a channel link to follow. A valid one opens the channel's preview,
+/// as a channel link clicked in a message does.
+fn follow_channel(app: &mut App, ui: &mut egui::Ui) {
+    let palette = app.palette;
+    title(
+        ui,
+        app,
+        &crate::i18n::gettext(app.locale, "Follow a channel"),
+    );
+    theme::paragraph(
+        ui,
+        crate::i18n::gettext(
+            app.locale,
+            "Paste the channel's link. The channel shares it under Channel info, Share.",
+        ),
+        theme::regular(13.0),
+        palette.secondary,
+    );
+    ui.add_space(4.0);
+    let id = egui::Id::new("follow-channel-link");
+    let mut link = ui
+        .data(|data| data.get_temp::<String>(id))
+        .unwrap_or_default();
+    let submit = ui.memory(|memory| memory.has_focus(id))
+        && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+    let field = Frame::new()
+        .fill(palette.surface)
+        .corner_radius(CornerRadius::same(theme::RADIUS))
+        .inner_margin(Margin::symmetric(12, 8))
+        .show(ui, |ui| {
+            ui.set_min_height(
+                ui.ctx()
+                    .fonts_mut(|fonts| fonts.row_height(&theme::regular(16.0)))
+                    + 4.0,
+            );
+            let response = ui.add(
+                egui::TextEdit::singleline(&mut link)
+                    .id(id)
+                    .hint_text(
+                        egui::RichText::new("https://whatsapp.com/channel/…")
+                            .color(palette.dim)
+                            .font(theme::regular(16.0)),
+                    )
+                    .font(theme::regular(16.0))
+                    .text_color(palette.text)
+                    .frame(egui::Frame::NONE)
+                    .desired_width(f32::INFINITY),
+            );
+            if !response.has_focus() && link.is_empty() {
+                response.request_focus();
+            }
+        });
+    theme::focus_outline(ui, id, field.response.rect, f32::from(theme::RADIUS));
+    let ready = crate::safety::channel_invite_code(&link).is_some();
+    if !ready && !link.trim().is_empty() {
+        ui.add_space(4.0);
+        theme::paragraph(
+            ui,
+            crate::i18n::gettext(app.locale, "This is not a WhatsApp channel link."),
+            theme::regular(13.0),
+            palette.danger,
+        );
+    }
+    ui.add_space(8.0);
+    ui.horizontal(|ui| {
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let next = ui
+                .add_enabled_ui(ready, |ui| {
+                    theme::pill_button(
+                        ui,
+                        &palette,
+                        &crate::i18n::gettext(app.locale, "Continue"),
+                        true,
+                    )
+                })
+                .inner;
+            if (next.clicked() || submit) && ready {
+                // The preview replaces this dialog.
+                app.actions.push(Action::OpenUrl(std::mem::take(&mut link)));
+            }
+            if theme::pill_button(
+                ui,
+                &palette,
+                &crate::i18n::gettext(app.locale, "Cancel"),
+                false,
+            )
+            .clicked()
+            {
+                link.clear();
+                app.actions.push(Action::CloseDialog);
+            }
+        });
+    });
+    ui.data_mut(|data| data.insert_temp(id, link));
 }
 
 fn new_contact(app: &mut App, ui: &mut egui::Ui) {
