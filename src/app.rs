@@ -1343,6 +1343,7 @@ impl App {
             .unwrap_or_else(|| match settings.theme {
                 ThemeChoice::Light => Palette::light(),
                 ThemeChoice::Messages => Palette::messages(),
+                ThemeChoice::Graphite => Palette::graphite(),
                 _ => Palette::dark(),
             });
         let locale = crate::i18n::resolve(settings.interface_language);
@@ -6243,8 +6244,11 @@ impl App {
             || match self.settings.theme {
                 ThemeChoice::Dark => egui::ThemePreference::Dark,
                 ThemeChoice::Light => egui::ThemePreference::Light,
-                // Messages follows the system's appearance, as Messages does.
-                ThemeChoice::System | ThemeChoice::Messages => egui::ThemePreference::System,
+                // Messages follows the system's appearance, as Messages does,
+                // and Graphite with it.
+                ThemeChoice::System | ThemeChoice::Messages | ThemeChoice::Graphite => {
+                    egui::ThemePreference::System
+                }
             },
             |palette| {
                 if palette.dark {
@@ -6293,6 +6297,12 @@ impl App {
                     Palette::messages()
                 } else {
                     Palette::messages_light()
+                }
+            } else if self.settings.theme == ThemeChoice::Graphite {
+                if dark {
+                    Palette::graphite()
+                } else {
+                    Palette::graphite_light()
                 }
             } else if dark {
                 Palette::dark()

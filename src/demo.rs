@@ -3149,6 +3149,17 @@ pub fn apply_flags(app: &mut App, page: Option<&str>) {
                     palette: crate::theme::Palette::messages_light(),
                 });
             }
+            "graphite" => {
+                app.settings.theme = ThemeChoice::Graphite;
+            }
+            // Graphite follows the system too; this shows its light side.
+            "graphite-light" => {
+                app.settings.custom_theme = Some("Graphite light.json".into());
+                app.settings.custom_theme_cache = Some(crate::theme::CustomTheme {
+                    filename: "Graphite light.json".into(),
+                    palette: crate::theme::Palette::graphite_light(),
+                });
+            }
             "login" => {
                 unlink(app);
                 app.link = LinkStatus::Unlinked {

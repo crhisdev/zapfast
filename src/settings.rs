@@ -36,13 +36,21 @@ pub enum ThemeChoice {
     /// macOS's greys, light or dark as the system is, with bubbles shaped as
     /// Messages draws them.
     Messages,
+    /// Neutral greys with a teal accent, light or dark as the system is.
+    Graphite,
 }
 
 impl ThemeChoice {
     /// The choices Settings offers, on every platform. Messages shows the
     /// desktop through its window where the platform can, and is opaque in
     /// its own colours elsewhere (see [`crate::backdrop`]).
-    pub const ALL: &[ThemeChoice] = &[Self::System, Self::Light, Self::Dark, Self::Messages];
+    pub const ALL: &[ThemeChoice] = &[
+        Self::System,
+        Self::Light,
+        Self::Dark,
+        Self::Messages,
+        Self::Graphite,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -50,6 +58,7 @@ impl ThemeChoice {
             Self::Light => "Light",
             Self::System => "Follow system",
             Self::Messages => "Messages",
+            Self::Graphite => "Graphite",
         }
     }
 }
@@ -416,6 +425,10 @@ pub struct Settings {
     /// system instead of rejecting the whole file; this marks the rest.
     #[serde(skip_serializing)]
     pub(crate) messages_theme: bool,
+    /// Whether a `"system"` theme is really Graphite, written the same way
+    /// as Messages for the same reason.
+    #[serde(skip_serializing)]
+    pub(crate) graphite_theme: bool,
     /// The interface's typeface.
     pub font: FontChoice,
     /// Windows and Linux: draw ZapFast's own title bar and window buttons
@@ -554,6 +567,7 @@ impl Default for Settings {
             version: SETTINGS_VERSION,
             theme: ThemeChoice::System,
             messages_theme: false,
+            graphite_theme: false,
             font: FontChoice::System,
             custom_titlebar: false,
             interface_language: None,
@@ -723,14 +737,20 @@ impl Settings {
     }
 
     /// The settings as the file stores them: Messages is written as Follow
-    /// system plus a mark, so older releases still read the file.
+    /// system plus a mark, so older releases still read the file. Graphite
+    /// is written the same way.
     fn to_file(&self) -> std::io::Result<serde_json::Value> {
         let mut value = serde_json::to_value(self).map_err(std::io::Error::other)?;
-        if self.theme == ThemeChoice::Messages
+        let mark = match self.theme {
+            ThemeChoice::Messages => Some("messages_theme"),
+            ThemeChoice::Graphite => Some("graphite_theme"),
+            _ => None,
+        };
+        if let Some(mark) = mark
             && let Some(fields) = value.as_object_mut()
         {
             fields.insert("theme".into(), serde_json::to_value(ThemeChoice::System)?);
-            fields.insert("messages_theme".into(), true.into());
+            fields.insert(mark.into(), true.into());
         }
         Ok(value)
     }
@@ -741,6 +761,9 @@ impl Settings {
     fn migrate(&mut self) {
         if std::mem::take(&mut self.messages_theme) && self.theme == ThemeChoice::System {
             self.theme = ThemeChoice::Messages;
+        }
+        if std::mem::take(&mut self.graphite_theme) && self.theme == ThemeChoice::System {
+            self.theme = ThemeChoice::Graphite;
         }
         if self.version < 1 {
             // Old files store every field, so a default colour cannot be told
@@ -995,6 +1018,7 @@ mod tests {
             ThemeChoice::Light,
             ThemeChoice::System,
             ThemeChoice::Messages,
+            ThemeChoice::Graphite,
         ] {
             let settings = Settings {
                 theme,
