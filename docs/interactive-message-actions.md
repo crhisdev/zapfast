@@ -26,7 +26,9 @@ original archived message before constructing its quoted response.
 | Native-flow `single_select` | Choice dialog followed by a native-flow response with the row id |
 | HTTP(S) URL | Open the validated URL in the system browser |
 | Native-flow `cta_copy` | Copy the supplied code locally, without a message send |
-| Calls, forms, payments, shopping flows, carousel reply choices, unknown or incomplete actions | Unavailable, with an explanation pointing to WhatsApp Web or the phone |
+| Native-flow `payment_info` / `review_and_pay` with a Pix code or key | Copy the Pix code or key locally, without a message send |
+| Native-flow `galaxy_message` (WhatsApp Flows form) | Open the form in a dialog; finishing it sends the native-flow `galaxy_message` response |
+| Calls, other payments, shopping flows, carousel reply choices, unknown or incomplete actions | Unavailable, with an explanation pointing to WhatsApp Web or the phone |
 
 Choice indices in the UI refer only to the displayed, validated options.
 The worker re-reads the original archived protobuf to resolve protocol ids.
@@ -60,6 +62,26 @@ These checks do not establish live compatibility with every business bot.
 End-to-end validation requires the user to click a real received option and
 confirm both the outgoing quoted response and the business's follow-up. No
 personal archive contents or screenshots belong in fixtures or documentation.
+
+## Forms (WhatsApp Flows)
+
+A Flows button opens the business's form in a ZapFast dialog, following what
+WhatsApp Web's own Flows runtime does:
+
+- The form's screens are downloaded from `web.whatsapp.com/flows/json/<id>`,
+  unless the message already carries them.
+- For forms that talk to the business, the endpoint key is requested through
+  the WhatsApp connection and its signature is checked against the business's
+  Signal identity key. A key that cannot be confirmed stops the form.
+- Each data exchange goes to `graph.whatsapp.com/graphql/extensions`, sealed
+  with a fresh AES-128-GCM key wrapped with RSA-OAEP (SHA-256) for that
+  endpoint. Requests use the configured proxy.
+- Finishing the form sends the same quoted native-flow response the phone sends.
+
+Form values, PINs and replies are never logged or archived beyond the response
+message itself. Components ZapFast does not draw are shown as a notice to finish
+the form on the phone. Expressions in `If` conditions support `&&`, `||`, `!`,
+`==` and `!=`; anything else counts as false.
 
 ## Native interface
 
