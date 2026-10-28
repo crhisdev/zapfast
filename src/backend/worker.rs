@@ -47,6 +47,7 @@ mod download_folders;
 mod early_events;
 use early_events::WaitingReaction;
 mod favorite_chats;
+mod follow_channel;
 mod group_admin;
 mod interactive;
 mod link_watch;
@@ -97,7 +98,7 @@ const SHELF_REFRESH_EVERY: usize = 4;
 /// How many starred messages the list shows.
 const STARRED_LIMIT: usize = 200;
 const ATTACHMENT_LIMIT_ERROR: &str =
-    "This attachment is larger than the 64 MiB automatic download limit";
+    crate::i18n::gettext_noop("This attachment is larger than the 64 MiB automatic download limit");
 
 /// The deadline of a download of unknown or small size.
 const ATTACHMENT_TIMEOUT: Duration = Duration::from_secs(120);
@@ -112,13 +113,15 @@ fn confirmed_download(
 ) -> Result<PathBuf, String> {
     match saved {
         Ok(true) => Ok(path),
-        Ok(false) => Err("This attachment is no longer in the archive".to_owned()),
+        Ok(false) => {
+            Err(crate::i18n::gettext_noop("This attachment is no longer in the archive").to_owned())
+        }
         Err(_) => {
             log::warn!("could not store a downloaded attachment's path");
-            Err(
-                "Could not record the downloaded file in the archive. The file has been kept"
-                    .to_owned(),
+            Err(crate::i18n::gettext_noop(
+                "Could not record the downloaded file in the archive. The file has been kept",
             )
+            .to_owned())
         }
     }
 }
@@ -134,7 +137,7 @@ async fn with_attachment_deadline<T>(
 ) -> Result<T, String> {
     tokio::time::timeout(duration, operation)
         .await
-        .unwrap_or_else(|_| Err("Download timed out".to_owned()))
+        .unwrap_or_else(|_| Err(crate::i18n::gettext_noop("Download timed out").to_owned()))
 }
 
 /// A streaming download sink that refuses to grow beyond the attachment limit.
@@ -402,7 +405,7 @@ fn temporary_attachment_file(path: &Path) -> Result<(PathBuf, std::fs::File), St
             Err(error) => return Err(error.to_string()),
         }
     }
-    Err("Could not create a unique attachment staging file".to_owned())
+    Err(crate::i18n::gettext_noop("Could not create a unique attachment staging file").to_owned())
 }
 
 /// Removes a download's staging file when it ends, whichever way that is:
@@ -735,7 +738,7 @@ pub async fn run(
             result => {
                 let error = match result {
                     Ok(Err(error)) => format!("{error:#}"),
-                    Err(_) => "Archive unlock worker failed".to_owned(),
+                    Err(_) => crate::i18n::gettext_noop("Archive unlock worker failed").to_owned(),
                     Ok(Ok(_)) => unreachable!(),
                 };
                 log::error!("could not unlock the message archive: {error}");
@@ -753,9 +756,12 @@ pub async fn run(
                                     kept.file_name().unwrap_or_default().to_string_lossy()
                                 ),
                                 Err(error) => {
-                                    let _ = events.send(Event::Link(LinkStatus::Failed(format!(
-                                        "Could not set the old archive aside: {error}"
-                                    ))));
+                                    let _ = events.send(Event::Link(LinkStatus::Failed(
+                                        crate::i18n::gettext_noop(
+                                            "Could not set the old archive aside: {error}",
+                                        )
+                                        .replace("{error}", &error.to_string()),
+                                    )));
                                     waker.wake();
                                     continue;
                                 }
@@ -1099,16 +1105,16 @@ fn set_aside_unreadable_archive(dirs: &AccountDirs) -> std::io::Result<PathBuf> 
 fn invite_error(error: &str) -> String {
     let error = error.to_ascii_lowercase();
     if error.contains("401") || error.contains("not-authorized") {
-        "This link was reset or you are not allowed to join.".to_owned()
+        crate::i18n::gettext_noop("This link was reset or you are not allowed to join.").to_owned()
     } else if error.contains("404") || error.contains("item-not-found") || error.contains("invalid")
     {
-        "This invite link is invalid or has been reset.".to_owned()
+        crate::i18n::gettext_noop("This invite link is invalid or has been reset.").to_owned()
     } else if error.contains("410") || error.contains("gone") {
-        "This invite link has expired.".to_owned()
+        crate::i18n::gettext_noop("This invite link has expired.").to_owned()
     } else if error.contains("409") || error.contains("conflict") {
-        "You are already in this group.".to_owned()
+        crate::i18n::gettext_noop("You are already in this group.").to_owned()
     } else if error.contains("406") || error.contains("full") {
-        "This group is full.".to_owned()
+        crate::i18n::gettext_noop("This group is full.").to_owned()
     } else {
         "WhatsApp could not open this invite link. Try again later.".to_owned()
     }
@@ -1808,7 +1814,7 @@ impl Worker {
                 starred,
                 generation,
                 session,
-                result: Err("Not connected to WhatsApp".to_owned()),
+                result: Err(crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned()),
             });
             return;
         };
@@ -1819,7 +1825,9 @@ impl Worker {
                 starred,
                 generation,
                 session,
-                result: Err("This message is not on this computer".to_owned()),
+                result: Err(
+                    crate::i18n::gettext_noop("This message is not on this computer").to_owned(),
+                ),
             });
             return;
         };
@@ -2702,9 +2710,10 @@ impl Worker {
         let store = match device_store::open(&path).await {
             Ok(store) => store,
             Err(error) => {
-                self.set_status(LinkStatus::Failed(format!(
-                    "Could not open the device store: {error}"
-                )));
+                self.set_status(LinkStatus::Failed(
+                    crate::i18n::gettext_noop("Could not open the device store: {error}")
+                        .replace("{error}", &error.to_string()),
+                ));
                 return;
             }
         };
@@ -2751,9 +2760,10 @@ impl Worker {
                 self.handle = Some(handle);
                 self.set_status(LinkStatus::Connecting);
             }
-            Err(error) => self.set_status(LinkStatus::Failed(format!(
-                "Could not start WhatsApp: {error}"
-            ))),
+            Err(error) => self.set_status(LinkStatus::Failed(
+                crate::i18n::gettext_noop("Could not start WhatsApp: {error}")
+                    .replace("{error}", &error.to_string()),
+            )),
         }
     }
 
@@ -3071,7 +3081,9 @@ impl Worker {
                     }
                 }
             }
-            Err(_) => self.emit(Event::Error("Could not refresh deleted messages".into())),
+            Err(_) => self.emit(Event::Error(
+                crate::i18n::gettext_noop("Could not refresh deleted messages").into(),
+            )),
         }
         // Receipts filed under the privacy id may name messages archived
         // under the phone number.
@@ -3161,7 +3173,9 @@ impl Worker {
             return;
         };
         let Some(client) = self.client.clone() else {
-            self.emit(Event::Error("Not connected to WhatsApp".into()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Not connected to WhatsApp").into(),
+            ));
             let _ = self.commands.send(Command::AccountPrivacyFailed { kind });
             return;
         };
@@ -3552,10 +3566,10 @@ impl Worker {
             E::PairingCodeError(error) => {
                 self.pair_code = None;
                 self.pairing_phone = None;
-                self.emit(Event::Error(format!(
-                    "Could not link by phone number: {}",
-                    error.error
-                )));
+                self.emit(Event::Error(
+                    crate::i18n::gettext_noop("Could not link by phone number: {error}")
+                        .replace("{error}", &error.error.to_string()),
+                ));
                 let status = self.unlinked();
                 self.set_status(status);
             }
@@ -3694,7 +3708,8 @@ impl Worker {
             }
             E::StreamReplaced(_) => {
                 self.emit(Event::Error(
-                    "Another WhatsApp Web session replaced this one".to_owned(),
+                    crate::i18n::gettext_noop("Another WhatsApp Web session replaced this one")
+                        .to_owned(),
                 ));
             }
             E::TemporaryBan(ban) => {
@@ -3972,7 +3987,7 @@ impl Worker {
     fn set_profile(&mut self, name: Option<String>, about: Option<String>) {
         let Some(client) = self.client.clone() else {
             self.emit(Event::Error(
-                "Connect to WhatsApp to change your profile.".to_owned(),
+                crate::i18n::gettext_noop("Connect to WhatsApp to change your profile.").to_owned(),
             ));
             return;
         };
@@ -3991,8 +4006,10 @@ impl Worker {
                         saved_name = Some(name);
                     }
                     Err(error) => {
-                        let _ = events
-                            .send(Event::Error(format!("Could not change your name: {error}")));
+                        let _ = events.send(Event::Error(
+                            crate::i18n::gettext_noop("Could not change your name: {error}")
+                                .replace("{error}", &error.to_string()),
+                        ));
                     }
                 }
             }
@@ -4001,9 +4018,10 @@ impl Worker {
                 match profile.set_status_text(&about).await {
                     Ok(()) => saved_about = Some(about),
                     Err(error) => {
-                        let _ = events.send(Event::Error(format!(
-                            "Could not change your About: {error}"
-                        )));
+                        let _ = events.send(Event::Error(
+                            crate::i18n::gettext_noop("Could not change your About: {error}")
+                                .replace("{error}", &error.to_string()),
+                        ));
                     }
                 }
             }
@@ -5186,7 +5204,10 @@ impl Worker {
                     }
                 }
                 _ => Content::Unsupported {
-                    what: "Waiting for this message. Open WhatsApp on your phone".to_owned(),
+                    what: crate::i18n::gettext_noop(
+                        "Waiting for this message. Open WhatsApp on your phone",
+                    )
+                    .to_owned(),
                 },
             },
             status: if from_me {
@@ -5521,9 +5542,10 @@ impl Worker {
             }
             Ok(Err(error)) => {
                 log::warn!("a history chunk could not be read");
-                self.emit(Event::Error(format!(
-                    "Could not read part of the chat history: {error}"
-                )));
+                self.emit(Event::Error(
+                    crate::i18n::gettext_noop("Could not read part of the chat history: {error}")
+                        .replace("{error}", &error.to_string()),
+                ));
             }
             Err(_error) => log::warn!("history parsing worker failed"),
         }
@@ -6178,7 +6200,10 @@ impl Worker {
             // retries back off quietly.
             if explicit && self.older_warned.insert(chat) {
                 self.emit(Event::Error(
-                    "Your phone did not send older messages. Check that it is online".to_owned(),
+                    crate::i18n::gettext_noop(
+                        "Your phone did not send older messages. Check that it is online",
+                    )
+                    .to_owned(),
                 ));
             }
         }
@@ -6238,7 +6263,7 @@ impl Worker {
                 silent: false,
             });
             self.emit(Event::Error(
-                "This message is no longer in the archive".into(),
+                crate::i18n::gettext_noop("This message is no longer in the archive").into(),
             ));
             return;
         };
@@ -6308,7 +6333,10 @@ impl Worker {
                     let _ = commands.send(Command::OlderFailed {
                         chat,
                         serial,
-                        error: format!("Could not request older messages from your phone: {error}"),
+                        error: crate::i18n::gettext_noop(
+                            "Could not request older messages from your phone: {error}",
+                        )
+                        .replace("{error}", &error.to_string()),
                     });
                 }
             }
@@ -6419,7 +6447,9 @@ impl Worker {
         to_phone: bool,
     ) {
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&id)) else {
-            self.emit(Event::Error("Not connected to WhatsApp".to_owned()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned(),
+            ));
             return;
         };
         let commands = self.commands.clone();
@@ -6467,7 +6497,8 @@ impl Worker {
         if let Some(chat) = destination
             && !writable(chat)
         {
-            let error = "This conversation is read-only in ZapFast".to_owned();
+            let error =
+                crate::i18n::gettext_noop("This conversation is read-only in ZapFast").to_owned();
             if matches!(&command, Command::CreatePoll { .. }) {
                 self.emit(Event::PollCreated {
                     chat: chat.clone(),
@@ -6759,8 +6790,10 @@ impl Worker {
                 match outcome {
                     MessageRemovalOutcome::Accepted => self.delete_message_here(&chat, &id),
                     MessageRemovalOutcome::Uncertain => self.emit(Event::Error(
-                        "Could not confirm the deletion. It will be retried after reconnecting"
-                            .into(),
+                        crate::i18n::gettext_noop(
+                            "Could not confirm the deletion. It will be retried after reconnecting",
+                        )
+                        .into(),
                     )),
                 }
             }
@@ -6958,8 +6991,10 @@ impl Worker {
                             let _ = commands.send(Command::SetProfilePicture(bytes));
                         }
                         Err(error) => {
-                            let _ = events
-                                .send(Event::Error(format!("Could not use this picture: {error}")));
+                            let _ = events.send(Event::Error(
+                                crate::i18n::gettext_noop("Could not use this picture: {error}")
+                                    .replace("{error}", &error.to_string()),
+                            ));
                         }
                     }
                     waker.wake();
@@ -6968,7 +7003,10 @@ impl Worker {
             Command::SetProfilePicture(bytes) => {
                 let Some(client) = self.client.clone() else {
                     self.emit(Event::Error(
-                        "Connect to WhatsApp to change your profile picture.".to_owned(),
+                        crate::i18n::gettext_noop(
+                            "Connect to WhatsApp to change your profile picture.",
+                        )
+                        .to_owned(),
                     ));
                     return;
                 };
@@ -6985,9 +7023,12 @@ impl Worker {
                             });
                         }
                         Err(error) => {
-                            let _ = events.send(Event::Error(format!(
-                                "Could not change your profile picture: {error}"
-                            )));
+                            let _ = events.send(Event::Error(
+                                crate::i18n::gettext_noop(
+                                    "Could not change your profile picture: {error}",
+                                )
+                                .replace("{error}", &error.to_string()),
+                            ));
                         }
                     }
                     waker.wake();
@@ -7030,8 +7071,10 @@ impl Worker {
                             });
                         }
                         Err(error) => {
-                            let _ = events
-                                .send(Event::Error(format!("Could not use this picture: {error}")));
+                            let _ = events.send(Event::Error(
+                                crate::i18n::gettext_noop("Could not use this picture: {error}")
+                                    .replace("{error}", &error.to_string()),
+                            ));
                         }
                     }
                     waker.wake();
@@ -7111,9 +7154,10 @@ impl Worker {
                                 |name| name.to_string_lossy().into_owned()
                             )
                         )),
-                        Err(error) => {
-                            Event::Error(format!("Could not save the attachment: {error}"))
-                        }
+                        Err(error) => Event::Error(
+                            crate::i18n::gettext_noop("Could not save the attachment: {error}")
+                                .replace("{error}", &error.to_string()),
+                        ),
                     };
                     let _ = events.send(event);
                     waker.wake();
@@ -7248,11 +7292,14 @@ impl Worker {
                 (Ok(path), Some(chat)) => self.send_sticker(chat, path, quoting),
                 (Ok(path), None) => {
                     self.favorite_sticker(&path);
-                    self.emit(Event::Info("Added to favorites".to_owned()));
+                    self.emit(Event::Info(
+                        crate::i18n::gettext_noop("Added to favorites").to_owned(),
+                    ));
                 }
-                (Err(error), _) => {
-                    self.emit(Event::Error(format!("Could not make the sticker: {error}")))
-                }
+                (Err(error), _) => self.emit(Event::Error(
+                    crate::i18n::gettext_noop("Could not make the sticker: {error}")
+                        .replace("{error}", &error.to_string()),
+                )),
             },
             Command::InspectPicture { target, path } => {
                 let commands = self.commands.clone();
@@ -7320,7 +7367,10 @@ impl Worker {
                     return;
                 }
                 if let Some(error) = error {
-                    self.emit(Event::Error(format!("Could not save contact: {error}")));
+                    self.emit(Event::Error(
+                        crate::i18n::gettext_noop("Could not save contact: {error}")
+                            .replace("{error}", &error.to_string()),
+                    ));
                     return;
                 }
                 let contact = Contact {
@@ -7348,14 +7398,17 @@ impl Worker {
                 let Some(phone) = crate::util::international_phone(&phone) else {
                     self.emit(Event::ContactFailed {
                         request,
-                        error: "Enter a valid international phone number".to_owned(),
+                        error: crate::i18n::gettext_noop(
+                            "Enter a valid international phone number",
+                        )
+                        .to_owned(),
                     });
                     return;
                 };
                 let Some(client) = self.client.clone() else {
                     self.emit(Event::ContactFailed {
                         request,
-                        error: "Not connected to WhatsApp".to_owned(),
+                        error: crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned(),
                     });
                     return;
                 };
@@ -7369,7 +7422,12 @@ impl Worker {
                         .is_on_whatsapp(&[jid])
                         .await
                         .map(|results| results.iter().any(|result| result.is_registered))
-                        .map_err(|_| "Could not check the number. Please try again.".to_owned());
+                        .map_err(|_| {
+                            crate::i18n::gettext_noop(
+                                "Could not check the number. Please try again.",
+                            )
+                            .to_owned()
+                        });
                     let _ = commands.send(Command::ContactChecked {
                         generation,
                         request,
@@ -7398,7 +7456,8 @@ impl Worker {
                     Ok(false) => {
                         self.emit(Event::ContactFailed {
                             request,
-                            error: "This number is not on WhatsApp".to_owned(),
+                            error: crate::i18n::gettext_noop("This number is not on WhatsApp")
+                                .to_owned(),
                         });
                         return;
                     }
@@ -7423,9 +7482,10 @@ impl Worker {
                     self.emit(Event::Info(format!("Added sticker pack \"{name}\"")));
                 }
                 Err(error) if error.is_empty() => self.emit_stickers(),
-                Err(error) => {
-                    self.emit(Event::Error(format!("Could not add sticker pack: {error}")))
-                }
+                Err(error) => self.emit(Event::Error(
+                    crate::i18n::gettext_noop("Could not add sticker pack: {error}")
+                        .replace("{error}", &error.to_string()),
+                )),
             },
             Command::DeleteStickerPack { dir } => {
                 let root = self.packs_dir();
@@ -7478,7 +7538,9 @@ impl Worker {
             }
             Command::AccountPrivacyFailed { kind } => {
                 self.emit(Event::AccountPrivacyFailed { kind });
-                self.emit(Event::Error("Could not update privacy settings.".into()));
+                self.emit(Event::Error(
+                    crate::i18n::gettext_noop("Could not update privacy settings.").into(),
+                ));
             }
             Command::SetOnline(online) => self.set_online(online),
             // Only meaningful while the archive cannot be opened.
@@ -7487,7 +7549,10 @@ impl Worker {
                 let Some(client) = self.client.clone() else {
                     self.emit(Event::InvitePreview {
                         code,
-                        result: Err("ZapFast is not connected to WhatsApp".to_owned()),
+                        result: Err(crate::i18n::gettext_noop(
+                            "ZapFast is not connected to WhatsApp",
+                        )
+                        .to_owned()),
                     });
                     return;
                 };
@@ -7516,7 +7581,10 @@ impl Worker {
                 let Some(client) = self.client.clone() else {
                     self.emit(Event::InviteJoined {
                         code,
-                        result: Err("ZapFast is not connected to WhatsApp".to_owned()),
+                        result: Err(crate::i18n::gettext_noop(
+                            "ZapFast is not connected to WhatsApp",
+                        )
+                        .to_owned()),
                     });
                     return;
                 };
@@ -7531,6 +7599,9 @@ impl Worker {
                     let _ = commands.send(Command::InviteJoined { code, result });
                 });
             }
+            Command::PreviewChannel(code) => self.preview_channel(code),
+            Command::FollowChannel { code, id } => self.follow_channel(code, id),
+            Command::ChannelFollowed { code, result } => self.channel_followed(code, result),
             Command::InviteJoined { code, result } => {
                 let result = result.map(|(id, pending)| {
                     if !pending {
@@ -7623,9 +7694,10 @@ impl Worker {
                     crate::util::now(),
                 ) {
                     Ok(_) => self.emit_stickers(),
-                    Err(error) => {
-                        self.emit(Event::Error(format!("Could not create the pack: {error}")))
-                    }
+                    Err(error) => self.emit(Event::Error(
+                        crate::i18n::gettext_noop("Could not create the pack: {error}")
+                            .replace("{error}", &error.to_string()),
+                    )),
                 }
             }
             Command::SetStickerPack {
@@ -7700,7 +7772,8 @@ impl Worker {
                 // it back despite the dialog saying it was deleted there too.
                 let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
                     self.emit(Event::Error(
-                        "Connect to WhatsApp to delete this chat".to_owned(),
+                        crate::i18n::gettext_noop("Connect to WhatsApp to delete this chat")
+                            .to_owned(),
                     ));
                     return;
                 };
@@ -7738,7 +7811,10 @@ impl Worker {
                 } else {
                     log::warn!("the phone did not delete a chat");
                     self.emit(Event::Error(
-                        "The phone did not delete this chat. Try again when connected".to_owned(),
+                        crate::i18n::gettext_noop(
+                            "The phone did not delete this chat. Try again when connected",
+                        )
+                        .to_owned(),
                     ));
                 }
             }
@@ -7749,7 +7825,8 @@ impl Worker {
                 // despite the dialog saying they were cleared there too.
                 let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
                     self.emit(Event::Error(
-                        "Connect to WhatsApp to clear this chat".to_owned(),
+                        crate::i18n::gettext_noop("Connect to WhatsApp to clear this chat")
+                            .to_owned(),
                     ));
                     return;
                 };
@@ -7760,7 +7837,8 @@ impl Worker {
                     // anywhere.
                     log::warn!("could not read the boundary of a chat to clear");
                     self.emit(Event::Error(
-                        "Could not read this chat's messages. Try again".to_owned(),
+                        crate::i18n::gettext_noop("Could not read this chat's messages. Try again")
+                            .to_owned(),
                     ));
                     return;
                 };
@@ -7793,14 +7871,19 @@ impl Worker {
                         // The phone has cleared it; say so rather than leave
                         // the messages here looking as if nothing happened.
                         self.emit(Event::Error(
-                            "The phone cleared this chat, but ZapFast could not clear it here"
-                                .to_owned(),
+                            crate::i18n::gettext_noop(
+                                "The phone cleared this chat, but ZapFast could not clear it here",
+                            )
+                            .to_owned(),
                         ));
                     }
                 } else {
                     log::warn!("the phone did not clear a chat");
                     self.emit(Event::Error(
-                        "The phone did not clear this chat. Try again when connected".to_owned(),
+                        crate::i18n::gettext_noop(
+                            "The phone did not clear this chat. Try again when connected",
+                        )
+                        .to_owned(),
                     ));
                 }
             }
@@ -7962,7 +8045,9 @@ impl Worker {
             }
             Command::PairWithPhone(phone) => {
                 let Some(client) = self.client.clone() else {
-                    self.emit(Event::Error("Not connected to WhatsApp yet".to_owned()));
+                    self.emit(Event::Error(
+                        crate::i18n::gettext_noop("Not connected to WhatsApp yet").to_owned(),
+                    ));
                     return;
                 };
                 self.pairing_phone = Some(phone.clone());
@@ -7989,9 +8074,10 @@ impl Worker {
                 }
                 Err(error) => {
                     self.pairing_phone = None;
-                    self.emit(Event::Error(format!(
-                        "Could not link by phone number: {error}"
-                    )));
+                    self.emit(Event::Error(
+                        crate::i18n::gettext_noop("Could not link by phone number: {error}")
+                            .replace("{error}", &error.to_string()),
+                    ));
                     let status = self.unlinked();
                     self.set_status(status);
                 }
@@ -8081,7 +8167,10 @@ impl Worker {
                 self.emit_chat(&chat);
                 self.advance_serial_forward(&id);
                 if let Some(error) = error {
-                    self.emit(Event::Error(format!("Message not sent: {error}")));
+                    self.emit(Event::Error(
+                        crate::i18n::gettext_noop("Message not sent: {error}")
+                            .replace("{error}", &error.to_string()),
+                    ));
                 }
             }
             Command::Downloaded {
@@ -8244,7 +8333,8 @@ impl Worker {
         };
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
             self.emit(Event::Error(
-                "Connect to WhatsApp to change the group's name.".to_owned(),
+                crate::i18n::gettext_noop("Connect to WhatsApp to change the group's name.")
+                    .to_owned(),
             ));
             return;
         };
@@ -8276,7 +8366,8 @@ impl Worker {
         }
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
             self.emit(Event::Error(
-                "Connect to WhatsApp to change the group's photo.".to_owned(),
+                crate::i18n::gettext_noop("Connect to WhatsApp to change the group's photo.")
+                    .to_owned(),
             ));
             return;
         };
@@ -8340,10 +8431,10 @@ impl Worker {
                     match edit {
                         GroupEdit::Name(_) => "Could not rename the group.",
                         GroupEdit::Picture { removed: false } => {
-                            "Could not change the group's photo."
+                            crate::i18n::gettext_noop("Could not change the group's photo.")
                         }
                         GroupEdit::Picture { removed: true } => {
-                            "Could not remove the group's photo."
+                            crate::i18n::gettext_noop("Could not remove the group's photo.")
                         }
                     }
                     .to_owned()
@@ -8372,9 +8463,9 @@ impl Worker {
         // us as a member.
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
             self.emit(Event::Error(if channel {
-                "Could not leave the channel.".into()
+                crate::i18n::gettext_noop("Could not leave the channel.").into()
             } else {
-                "Could not leave the group.".into()
+                crate::i18n::gettext_noop("Could not leave the group.").into()
             }));
             self.emit_chat(&chat);
             return;
@@ -8399,9 +8490,9 @@ impl Worker {
                 log::warn!("could not leave group: {error}");
             }
             self.emit(Event::Error(if channel {
-                "Could not leave the channel.".into()
+                crate::i18n::gettext_noop("Could not leave the channel.").into()
             } else {
-                "Could not leave the group.".into()
+                crate::i18n::gettext_noop("Could not leave the group.").into()
             }));
             // The chat goes back to what the archive says, which rolls back
             // the optimistic mark the interface made when the menu was used.
@@ -8706,7 +8797,10 @@ impl Worker {
         let limit = self.forward_limit(&from_chat, &messages);
         if to_chats.len() > limit {
             self.emit(Event::Error(if limit == 1 {
-                "Messages forwarded many times can be forwarded to only one chat".to_owned()
+                crate::i18n::gettext_noop(
+                    "Messages forwarded many times can be forwarded to only one chat",
+                )
+                .to_owned()
             } else {
                 format!("Messages can be forwarded to up to {limit} chats at once")
             }));
@@ -8720,11 +8814,15 @@ impl Worker {
     /// Prepares archived copies and queues each destination behind active sends.
     fn forward_messages(&mut self, from_chat: ChatId, messages: Vec<String>, to_chat: ChatId) {
         let Some(client) = self.connected_client() else {
-            self.emit(Event::Error("Not connected to WhatsApp".to_owned()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned(),
+            ));
             return;
         };
         let Some(jid) = Self::jid_of(&to_chat) else {
-            self.emit(Event::Error("Not connected to WhatsApp".to_owned()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned(),
+            ));
             return;
         };
         let jobs: Vec<_> = messages
@@ -8832,7 +8930,8 @@ impl Worker {
             self.emit_chat(&job.0);
             if !reported_read_only {
                 self.emit(Event::Error(
-                    "This conversation is read-only in ZapFast".to_owned(),
+                    crate::i18n::gettext_noop("This conversation is read-only in ZapFast")
+                        .to_owned(),
                 ));
                 reported_read_only = true;
             }
@@ -8879,8 +8978,10 @@ impl Worker {
             self.emit_chat(chat);
         }
         self.emit(Event::Error(
-            "Not connected to WhatsApp: the rest of the forwarded messages were not sent"
-                .to_owned(),
+            crate::i18n::gettext_noop(
+                "Not connected to WhatsApp: the rest of the forwarded messages were not sent",
+            )
+            .to_owned(),
         ));
     }
 
@@ -8894,7 +8995,7 @@ impl Worker {
     ) -> Option<(String, wa::Message, Option<u32>)> {
         let Ok(Some(source)) = self.archive.message(from_chat, message_id) else {
             self.emit(Event::Error(
-                "This message is not stored on this computer".to_owned(),
+                crate::i18n::gettext_noop("This message is not stored on this computer").to_owned(),
             ));
             return None;
         };
@@ -8906,18 +9007,21 @@ impl Worker {
                 | Content::Poll { .. }
                 | Content::Interactive { .. }
         ) {
-            self.emit(Event::Error("This message cannot be forwarded".to_owned()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("This message cannot be forwarded").to_owned(),
+            ));
             return None;
         }
         let Ok(Some(raw)) = self.archive.raw(from_chat, message_id) else {
             self.emit(Event::Error(
-                "The original message data is not available to forward".to_owned(),
+                crate::i18n::gettext_noop("The original message data is not available to forward")
+                    .to_owned(),
             ));
             return None;
         };
         let Ok(original) = wa::Message::decode_from_slice(&raw) else {
             self.emit(Event::Error(
-                "The original message data could not be read".to_owned(),
+                crate::i18n::gettext_noop("The original message data could not be read").to_owned(),
             ));
             return None;
         };
@@ -9138,7 +9242,12 @@ impl Worker {
             return;
         }
         let Some(client) = self.client.clone() else {
-            self.downloaded(chat, id, card, Err("Not connected to WhatsApp".to_owned()));
+            self.downloaded(
+                chat,
+                id,
+                card,
+                Err(crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned()),
+            );
             return;
         };
         let raw = self.archive.raw(&chat, &id).ok().flatten();
@@ -9147,7 +9256,7 @@ impl Worker {
                 chat,
                 id,
                 card,
-                Err("Attachment download keys are missing".to_owned()),
+                Err(crate::i18n::gettext_noop("Attachment download keys are missing").to_owned()),
             );
             return;
         };
@@ -9164,7 +9273,9 @@ impl Worker {
                     chat,
                     id,
                     card,
-                    Err("This card has no downloadable image".to_owned()),
+                    Err(
+                        crate::i18n::gettext_noop("This card has no downloadable image").to_owned(),
+                    ),
                 );
                 return;
             }
@@ -9209,7 +9320,10 @@ impl Worker {
                     chat,
                     id,
                     card,
-                    Err("This message has no downloadable file".to_owned()),
+                    Err(
+                        crate::i18n::gettext_noop("This message has no downloadable file")
+                            .to_owned(),
+                    ),
                 );
                 return;
             };
@@ -9361,12 +9475,16 @@ impl Worker {
                                             None => Err(text),
                                         }
                                     }
-                                    Ok(_) => {
-                                        Err("No longer available on WhatsApp's servers".to_owned())
-                                    }
+                                    Ok(_) => Err(crate::i18n::gettext_noop(
+                                        "No longer available on WhatsApp's servers",
+                                    )
+                                    .to_owned()),
                                     Err(_error) => {
                                         log::info!("media re-upload was not granted");
-                                        Err("No longer available on WhatsApp's servers".to_owned())
+                                        Err(crate::i18n::gettext_noop(
+                                            "No longer available on WhatsApp's servers",
+                                        )
+                                        .to_owned())
                                     }
                                 }
                             }
@@ -9407,8 +9525,8 @@ impl Worker {
             }
             (client, video) => {
                 let error = match (client, video) {
-                    (None, _) => "Not connected to WhatsApp",
-                    (_, None) => "The clip has not arrived",
+                    (None, _) => crate::i18n::gettext_noop("Not connected to WhatsApp"),
+                    (_, None) => crate::i18n::gettext_noop("The clip has not arrived"),
                     _ => ATTACHMENT_LIMIT_ERROR,
                 };
                 self.emit(Event::Motion {
@@ -9857,7 +9975,10 @@ impl Worker {
                     truncated,
                 });
             }
-            Err(error) => self.emit(Event::Error(format!("Could not search: {error}"))),
+            Err(error) => self.emit(Event::Error(
+                crate::i18n::gettext_noop("Could not search: {error}")
+                    .replace("{error}", &error.to_string()),
+            )),
         }
     }
 
@@ -9870,7 +9991,10 @@ impl Worker {
                 }
                 self.emit(Event::SearchHits { query, messages });
             }
-            Err(error) => self.emit(Event::Error(format!("Could not search: {error}"))),
+            Err(error) => self.emit(Event::Error(
+                crate::i18n::gettext_noop("Could not search: {error}")
+                    .replace("{error}", &error.to_string()),
+            )),
         }
     }
 
@@ -9899,7 +10023,10 @@ impl Worker {
                     complete,
                 });
             }
-            Err(error) => self.emit(Event::Error(format!("Could not read the chat: {error}"))),
+            Err(error) => self.emit(Event::Error(
+                crate::i18n::gettext_noop("Could not read the chat: {error}")
+                    .replace("{error}", &error.to_string()),
+            )),
         }
     }
 
@@ -9933,7 +10060,7 @@ impl Worker {
                 complete: false,
             });
             self.emit(Event::Error(
-                "This message is not stored on this computer".to_owned(),
+                crate::i18n::gettext_noop("This message is not stored on this computer").to_owned(),
             ));
             return;
         };
@@ -9952,7 +10079,10 @@ impl Worker {
                     complete: false,
                 });
             }
-            Err(error) => self.emit(Event::Error(format!("Could not read the chat: {error}"))),
+            Err(error) => self.emit(Event::Error(
+                crate::i18n::gettext_noop("Could not read the chat: {error}")
+                    .replace("{error}", &error.to_string()),
+            )),
         }
     }
 
@@ -9961,7 +10091,9 @@ impl Worker {
     /// once WhatsApp accepts the edit, and a refusal puts the original back.
     fn edit_text(&mut self, chat: ChatId, id: String, text: String, mentions: Vec<String>) {
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
-            self.emit(Event::Error("Not connected to WhatsApp".to_owned()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned(),
+            ));
             self.emit_message(&chat, &id);
             return;
         };
@@ -9969,7 +10101,9 @@ impl Worker {
             match self.prepare_text_edit(&chat, &id, text, mentions) {
                 Ok(prepared) => prepared,
                 Err(_) => {
-                    self.emit(Event::Error("Could not prepare the message edit".into()));
+                    self.emit(Event::Error(
+                        crate::i18n::gettext_noop("Could not prepare the message edit").into(),
+                    ));
                     self.emit_message(&chat, &id);
                     return;
                 }
@@ -9986,7 +10120,10 @@ impl Worker {
                 )
                 .await
                 .map(|_| (content, mention_rows))
-                .map_err(|error| format!("Could not send the edit: {error}"));
+                .map_err(|error| {
+                    crate::i18n::gettext_noop("Could not send the edit: {error}")
+                        .replace("{error}", &error.to_string())
+                });
             let _ = commands.send(Command::EditSettled {
                 chat,
                 id,
@@ -10083,14 +10220,14 @@ impl Worker {
             Ok(false) => {}
             Err(_) => {
                 self.emit(Event::Error(
-                    "Could not read the message's deletion state".into(),
+                    crate::i18n::gettext_noop("Could not read the message's deletion state").into(),
                 ));
                 return;
             }
         }
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
             self.emit(Event::Error(
-                "Connect to WhatsApp to delete this message".to_owned(),
+                crate::i18n::gettext_noop("Connect to WhatsApp to delete this message").to_owned(),
             ));
             return;
         };
@@ -10098,13 +10235,15 @@ impl Worker {
             Ok(Some(message)) => message,
             Ok(None) => {
                 if self.archive.cancel_message_removal(&chat, &id).is_err() {
-                    self.emit(Event::Error("Could not clear the pending deletion".into()));
+                    self.emit(Event::Error(
+                        crate::i18n::gettext_noop("Could not clear the pending deletion").into(),
+                    ));
                 }
                 return;
             }
             Err(_) => {
                 self.emit(Event::Error(
-                    "Could not read the message to delete".to_owned(),
+                    crate::i18n::gettext_noop("Could not read the message to delete").to_owned(),
                 ));
                 return;
             }
@@ -10112,7 +10251,8 @@ impl Worker {
         let participant = if jid.is_group() && !message.from_me {
             let Some(sender) = Self::jid_of(&message.sender) else {
                 self.emit(Event::Error(
-                    "Could not identify the message to delete".to_owned(),
+                    crate::i18n::gettext_noop("Could not identify the message to delete")
+                        .to_owned(),
                 ));
                 return;
             };
@@ -10122,7 +10262,8 @@ impl Worker {
         };
         let Some(account) = self.me_pn.as_deref() else {
             self.emit(Event::Error(
-                "Could not identify the account for this deletion".into(),
+                crate::i18n::gettext_noop("Could not identify the account for this deletion")
+                    .into(),
             ));
             return;
         };
@@ -10131,7 +10272,9 @@ impl Worker {
             .queue_message_removal(account, &chat, &id)
             .is_err()
         {
-            self.emit(Event::Error("Could not save the pending deletion".into()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Could not save the pending deletion").into(),
+            ));
             return;
         }
         let generation = self.privacy_generation;
@@ -10179,7 +10322,9 @@ impl Worker {
                     self.delete_message_for_me(chat, id);
                 }
             }
-            Err(_) => self.emit(Event::Error("Could not recover pending deletions".into())),
+            Err(_) => self.emit(Event::Error(
+                crate::i18n::gettext_noop("Could not recover pending deletions").into(),
+            )),
         }
     }
 
@@ -10194,7 +10339,9 @@ impl Worker {
                     self.delete_message_here(&chat, &id);
                 }
             }
-            Err(_) => self.emit(Event::Error("Could not recover confirmed deletions".into())),
+            Err(_) => self.emit(Event::Error(
+                crate::i18n::gettext_noop("Could not recover confirmed deletions").into(),
+            )),
         }
     }
 
@@ -10228,7 +10375,10 @@ impl Worker {
         });
         let Some(account) = account else {
             self.emit(Event::Error(
-                "Could not identify the account for the confirmed deletion".into(),
+                crate::i18n::gettext_noop(
+                    "Could not identify the account for the confirmed deletion",
+                )
+                .into(),
             ));
             return;
         };
@@ -10238,7 +10388,10 @@ impl Worker {
             .is_err()
         {
             self.emit(Event::Error(
-                "Could not save the confirmed deletion for local recovery".into(),
+                crate::i18n::gettext_noop(
+                    "Could not save the confirmed deletion for local recovery",
+                )
+                .into(),
             ));
             return;
         }
@@ -10271,7 +10424,9 @@ impl Worker {
 
     fn revoke(&mut self, chat: ChatId, id: String) {
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
-            self.emit(Event::Error("Not connected to WhatsApp".to_owned()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned(),
+            ));
             return;
         };
         let old = self.archive.message(&chat, &id).ok().flatten();
@@ -10289,9 +10444,12 @@ impl Worker {
                 let _ = commands.send(Command::Sent {
                     chat,
                     id: String::new(),
-                    error: Some(format!(
-                        "Could not delete the message for everyone: {error}"
-                    )),
+                    error: Some(
+                        crate::i18n::gettext_noop(
+                            "Could not delete the message for everyone: {error}",
+                        )
+                        .replace("{error}", &error.to_string()),
+                    ),
                 });
             }
         });
@@ -10402,7 +10560,10 @@ impl Worker {
                         let _ = commands.send(Command::Sent {
                             chat,
                             id: String::new(),
-                            error: Some(format!("Could not send the file: {error}")),
+                            error: Some(
+                                crate::i18n::gettext_noop("Could not send the file: {error}")
+                                    .replace("{error}", &error.to_string()),
+                            ),
                         });
                     }
                 }
@@ -10454,8 +10615,10 @@ impl Worker {
         tokio::spawn(async move {
             let outcome = async {
                 let encoded = tokio::task::spawn_blocking(move || {
-                    let image = image::RgbaImage::from_raw(width, height, rgba)
-                        .ok_or_else(|| "Clipboard image data is invalid".to_owned())?;
+                    let image =
+                        image::RgbaImage::from_raw(width, height, rgba).ok_or_else(|| {
+                            crate::i18n::gettext_noop("Clipboard image data is invalid").to_owned()
+                        })?;
                     encode_jpeg(&image::DynamicImage::ImageRgba8(image), 88)
                 })
                 .await
@@ -10483,7 +10646,10 @@ impl Worker {
                     let _ = commands.send(Command::Sent {
                         chat,
                         id: String::new(),
-                        error: Some(format!("Could not send the picture: {error}")),
+                        error: Some(
+                            crate::i18n::gettext_noop("Could not send the picture: {error}")
+                                .replace("{error}", &error.to_string()),
+                        ),
                     });
                 }
             }
@@ -10542,7 +10708,10 @@ impl Worker {
                     let _ = commands.send(Command::Sent {
                         chat,
                         id: String::new(),
-                        error: Some(format!("Could not send the voice message: {error}")),
+                        error: Some(
+                            crate::i18n::gettext_noop("Could not send the voice message: {error}")
+                                .replace("{error}", &error.to_string()),
+                        ),
                     });
                 }
             }
@@ -10615,7 +10784,10 @@ impl Worker {
                     let _ = commands.send(Command::Sent {
                         chat,
                         id: String::new(),
-                        error: Some(format!("Could not send the sticker: {error}")),
+                        error: Some(
+                            crate::i18n::gettext_noop("Could not send the sticker: {error}")
+                                .replace("{error}", &error.to_string()),
+                        ),
                     });
                 }
             }
@@ -10674,7 +10846,10 @@ impl Worker {
                     let _ = commands.send(Command::Sent {
                         chat,
                         id: String::new(),
-                        error: Some(format!("Could not send the GIF: {error}")),
+                        error: Some(
+                            crate::i18n::gettext_noop("Could not send the GIF: {error}")
+                                .replace("{error}", &error.to_string()),
+                        ),
                     });
                 }
             }
@@ -10684,11 +10859,15 @@ impl Worker {
     /// Archives and sends an uploaded attachment message.
     fn outbound(&mut self, chat: ChatId, row: Message, raw: Vec<u8>) {
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
-            self.emit(Event::Error("Not connected to WhatsApp".to_owned()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned(),
+            ));
             return;
         };
         let Ok(mut message) = wa::Message::decode_from_slice(&raw) else {
-            self.emit(Event::Error("Could not encode the attachment".to_owned()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Could not encode the attachment").to_owned(),
+            ));
             return;
         };
         let expiration = self.apply_ephemeral(&chat, &mut message);
@@ -10708,7 +10887,9 @@ impl Worker {
 
     fn react(&mut self, chat: ChatId, id: String, emoji: String) {
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
-            self.emit(Event::Error("Not connected to WhatsApp".to_owned()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned(),
+            ));
             return;
         };
         let Ok(Some(target)) = self.archive.message(&chat, &id) else {
@@ -10752,7 +10933,7 @@ impl Worker {
         let now = crate::util::now();
         if pinned && self.archive.pin_full(&chat, &id, now).unwrap_or(true) {
             self.emit(Event::Error(
-                "This chat already has three pinned messages".to_owned(),
+                crate::i18n::gettext_noop("This chat already has three pinned messages").to_owned(),
             ));
             return;
         }
@@ -10765,7 +10946,7 @@ impl Worker {
                 generation,
                 session,
                 expires_at: now + PIN_SECS,
-                result: Err("Not connected to WhatsApp".to_owned()),
+                result: Err(crate::i18n::gettext_noop("Not connected to WhatsApp").to_owned()),
             });
             return;
         };
@@ -10778,7 +10959,10 @@ impl Worker {
                 generation,
                 session,
                 expires_at: now + PIN_SECS,
-                result: Err("This message is not stored on this computer".to_owned()),
+                result: Err(crate::i18n::gettext_noop(
+                    "This message is not stored on this computer",
+                )
+                .to_owned()),
             });
             return;
         };
@@ -10941,9 +11125,14 @@ async fn send_outgoing(
                     lids,
                     stored,
                 })
-                .map_err(|_| "The application is shutting down".to_owned())?;
+                .map_err(|_| {
+                    crate::i18n::gettext_noop("The application is shutting down").to_owned()
+                })?;
             if saved.recv().await != Some(true) {
-                return Err("Could not save the group message recipients".to_owned());
+                return Err(crate::i18n::gettext_noop(
+                    "Could not save the group message recipients",
+                )
+                .to_owned());
             }
         }
         let message_id = whatsapp_rust::MessageId::new(&id).map_err(|error| error.to_string())?;
@@ -11963,7 +12152,8 @@ fn square_picture_jpeg(image: &image::DynamicImage) -> Result<Vec<u8>, String> {
 }
 
 /// What a refused change to a group's info says.
-const GROUP_EDIT_REFUSED: &str = "Only admins can change this group's name and photo.";
+const GROUP_EDIT_REFUSED: &str =
+    crate::i18n::gettext_noop("Only admins can change this group's name and photo.");
 
 /// Whether WhatsApp refused a group change because we may not make it,
 /// rather than failing to carry it out.
@@ -12322,8 +12512,12 @@ fn search_gifs(query: &str, key: &str, dir: &Path) -> Result<Vec<Gif>, GifError>
         }
         Err(error) => return Err(plain(format!("GIPHY request failed: {error}"))),
     };
-    let json: serde_json::Value = serde_json::from_str(&body)
-        .map_err(|error| plain(format!("Invalid GIPHY response: {error}")))?;
+    let json: serde_json::Value = serde_json::from_str(&body).map_err(|error| {
+        plain(
+            crate::i18n::gettext_noop("Invalid GIPHY response: {error}")
+                .replace("{error}", &error.to_string()),
+        )
+    })?;
     if let Some(message) = json["meta"]["msg"].as_str()
         && let Some(status) = json["meta"]["status"]
             .as_u64()
@@ -12432,7 +12626,7 @@ fn attach_quote(
         return Ok(None);
     };
     if !message.set_context_info(context) {
-        return Err("Could not attach the reply context".to_owned());
+        return Err(crate::i18n::gettext_noop("Could not attach the reply context").to_owned());
     }
     Ok(Some(shown))
 }
@@ -12460,10 +12654,10 @@ fn add_mentions(message: &mut wa::Message, mentions: &[String]) {
 /// library recognizes this field when it builds the outgoing stanza metadata.
 fn mark_view_once_photo(prepared: &mut Prepared) -> Result<(), String> {
     if !matches!(&prepared.content, Content::Image { .. }) {
-        return Err("View once is only available for photos".to_owned());
+        return Err(crate::i18n::gettext_noop("View once is only available for photos").to_owned());
     }
     let Some(image) = prepared.message.image_message.as_option_mut() else {
-        return Err("View once is only available for photos".to_owned());
+        return Err(crate::i18n::gettext_noop("View once is only available for photos").to_owned());
     };
     image.view_once = Some(true);
     Ok(())
@@ -12515,7 +12709,9 @@ pub(super) async fn file_outbound(
     let thumbnail = if prepared.message.is_view_once() {
         let once = crate::model::OnceMedia::of(&content)
             .filter(|kind| *kind == crate::model::OnceMedia::Photo)
-            .ok_or_else(|| "View once is only available for photos".to_owned())?;
+            .ok_or_else(|| {
+                crate::i18n::gettext_noop("View once is only available for photos").to_owned()
+            })?;
         content = Content::PhoneOnly {
             view_once: true,
             live_location: false,

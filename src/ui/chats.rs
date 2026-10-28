@@ -3,6 +3,7 @@
 use egui::{Align, Frame, Key, Layout, Margin, Rect, Sense, Vec2, pos2, vec2};
 
 use crate::app::App;
+use crate::i18n::gettext;
 use crate::model::{Action, Chat, ChatFilter, Contact, Dialog, Message, Page};
 use crate::theme::{self, Icon, Palette};
 
@@ -172,7 +173,7 @@ fn header(app: &mut App, ui: &mut egui::Ui) {
                             18.0,
                             palette.secondary,
                             palette.text,
-                            "Back to chats",
+                            &crate::i18n::gettext(app.locale, "Back to chats"),
                         )
                         .tab_stop(Stop::Back)
                         .clicked()
@@ -193,7 +194,7 @@ fn header(app: &mut App, ui: &mut egui::Ui) {
                             18.0,
                             palette.secondary,
                             palette.text,
-                            "Back to chats",
+                            &crate::i18n::gettext(app.locale, "Back to chats"),
                         )
                         .tab_stop(Stop::Back)
                         .clicked()
@@ -205,10 +206,10 @@ fn header(app: &mut App, ui: &mut egui::Ui) {
                         }
                         header_title(
                             ui,
-                            if app.locked_folder {
-                                "Locked chats"
+                            &if app.locked_folder {
+                                crate::i18n::gettext(app.locale, "Locked chats")
                             } else {
-                                "Archived"
+                                crate::i18n::gettext(app.locale, "Archived")
                             },
                             theme::bold(20.0),
                             palette.text,
@@ -219,7 +220,7 @@ fn header(app: &mut App, ui: &mut egui::Ui) {
                         // rail beside the list.
                         header_title(
                             ui,
-                            &crate::i18n::gettext(app.locale, tab_title(&app.page)),
+                            &crate::i18n::gettext(app.locale, tab_title(app)),
                             theme::bold(20.0),
                             palette.text,
                             buttons_width,
@@ -240,9 +241,11 @@ fn header(app: &mut App, ui: &mut egui::Ui) {
 }
 
 /// The header's title beside our avatar: the tab the list shows.
-fn tab_title(page: &Page) -> &'static str {
-    if *page == Page::Calls {
+fn tab_title(app: &App) -> &'static str {
+    if app.page == Page::Calls {
         "Calls"
+    } else if app.channels_tab() {
+        "Channels"
     } else {
         "Chats"
     }
@@ -334,6 +337,8 @@ fn search_and_filters(app: &mut App, ui: &mut egui::Ui) {
 enum HeaderButton {
     NewChat,
     NewCall,
+    /// Follow a channel by its link, in New chat's place on the Channels tab.
+    FollowChannel,
     HideList,
 }
 
@@ -369,7 +374,11 @@ fn list_header_buttons(app: &App, ctx: &egui::Context) -> Vec<HeaderButton> {
     if (calls && app.new_call) || (!calls && app.show_starred) {
         return Vec::new();
     }
-    header_buttons(ctx, calls)
+    let mut buttons = header_buttons(ctx, calls);
+    if app.channels_tab() {
+        buttons[0] = HeaderButton::FollowChannel;
+    }
+    buttons
 }
 
 /// Draws `buttons` in a right-to-left layout, with the macOS shortcuts in
@@ -385,7 +394,11 @@ fn header_button_row(app: &mut App, ui: &mut egui::Ui, buttons: &[HeaderButton],
                     HEADER_ICON,
                     palette.secondary,
                     palette.text,
-                    if macos { "New chat (⌘N)" } else { "New chat" },
+                    &if macos {
+                        crate::i18n::gettext(app.locale, "New chat (⌘N)")
+                    } else {
+                        crate::i18n::gettext(app.locale, "New chat")
+                    },
                 )
                 .tab_stop(Stop::NewChat)
                 .clicked()
@@ -408,6 +421,21 @@ fn header_button_row(app: &mut App, ui: &mut egui::Ui, buttons: &[HeaderButton],
                     app.actions.push(Action::ShowNewCall(true));
                 }
             }
+            HeaderButton::FollowChannel => {
+                if theme::icon_button(
+                    ui,
+                    Icon::Plus,
+                    HEADER_ICON,
+                    palette.secondary,
+                    palette.text,
+                    crate::i18n::gettext(app.locale, "Follow a channel").as_ref(),
+                )
+                .tab_stop(Stop::NewChat)
+                .clicked()
+                {
+                    app.actions.push(Action::ShowDialog(Dialog::FollowChannel));
+                }
+            }
             HeaderButton::HideList => {
                 if theme::icon_button(
                     ui,
@@ -415,10 +443,10 @@ fn header_button_row(app: &mut App, ui: &mut egui::Ui, buttons: &[HeaderButton],
                     HEADER_ICON,
                     palette.secondary,
                     palette.text,
-                    if macos {
-                        "Hide the chat list (⌘B)"
+                    &if macos {
+                        crate::i18n::gettext(app.locale, "Hide the chat list (⌘B)")
                     } else {
-                        "Hide the chat list (Ctrl+B)"
+                        crate::i18n::gettext(app.locale, "Hide the chat list (Ctrl+B)")
                     },
                 )
                 .tab_stop(Stop::Sidebar)
@@ -504,7 +532,7 @@ fn macos_header(app: &mut App, ui: &mut egui::Ui) {
                         18.0,
                         palette.secondary,
                         palette.text,
-                        "Back to chats",
+                        &crate::i18n::gettext(app.locale, "Back to chats"),
                     )
                     .tab_stop(Stop::Back)
                     .clicked()
@@ -525,7 +553,7 @@ fn macos_header(app: &mut App, ui: &mut egui::Ui) {
                         18.0,
                         palette.secondary,
                         palette.text,
-                        "Back to chats",
+                        &crate::i18n::gettext(app.locale, "Back to chats"),
                     )
                     .tab_stop(Stop::Back)
                     .clicked()
@@ -537,10 +565,10 @@ fn macos_header(app: &mut App, ui: &mut egui::Ui) {
                     }
                     header_title(
                         ui,
-                        if app.locked_folder {
-                            "Locked chats"
+                        &if app.locked_folder {
+                            crate::i18n::gettext(app.locale, "Locked chats")
                         } else {
-                            "Archived"
+                            crate::i18n::gettext(app.locale, "Archived")
                         },
                         theme::bold(16.0),
                         palette.text,
@@ -551,7 +579,7 @@ fn macos_header(app: &mut App, ui: &mut egui::Ui) {
                     // under the traffic lights.
                     header_title(
                         ui,
-                        &crate::i18n::gettext(app.locale, tab_title(&app.page)),
+                        &crate::i18n::gettext(app.locale, tab_title(app)),
                         theme::bold(20.0),
                         palette.text,
                         header_buttons_width(ui, &buttons),
@@ -591,12 +619,20 @@ fn filter_chips(app: &mut App, ui: &mut egui::Ui) {
     if !app.locked_folder_open() && !app.search.trim().is_empty() {
         return;
     }
+    // The Channels tab lists channels only, which no chip or label narrows.
+    if app.channels_tab() {
+        return;
+    }
     let palette = app.palette;
     ui.add_space(8.0);
     let output = widgets::chip_scroll_row(ui, "chat-filters", |ui| {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing = vec2(4.0, 6.0);
-            for filter in ChatFilter::EVERY {
+            // Channels have the rail's Channels tab instead of a chip.
+            for filter in ChatFilter::EVERY
+                .into_iter()
+                .filter(|filter| *filter != ChatFilter::Channels)
+            {
                 let count = match filter {
                     ChatFilter::All => 0,
                     _ => app.unread_chats(filter),
@@ -617,34 +653,12 @@ fn filter_chips(app: &mut App, ui: &mut egui::Ui) {
                     ChatFilter::Unread => Stop::Unread,
                     ChatFilter::Private => Stop::Private,
                     ChatFilter::Favorites => Stop::Favorites,
-                    ChatFilter::Groups => Stop::Groups,
-                    ChatFilter::Channels => Stop::Channels,
+                    // Channels is left out above.
+                    ChatFilter::Groups | ChatFilter::Channels => Stop::Groups,
                 });
                 // Store the chip rect for interaction tests.
                 ui.ctx()
                     .data_mut(|data| data.insert_temp(filter_chip_id(filter), chip.rect));
-                let chip = if filter == ChatFilter::Channels {
-                    let now = crate::util::now();
-                    let all_muted = app
-                        .chats
-                        .iter()
-                        .filter(|chat| chat.is_channel())
-                        .all(|chat| chat.muted(now));
-                    chip.context_menu(|ui| {
-                        let (icon, label) = if all_muted {
-                            (Icon::Bell, "Unmute all channels")
-                        } else {
-                            (Icon::BellOff, "Mute all channels")
-                        };
-                        if widgets::menu_item(ui, &palette, Some(icon), label) {
-                            app.actions.push(Action::MuteAllChannels(!all_muted));
-                            ui.close();
-                        }
-                    });
-                    chip
-                } else {
-                    chip
-                };
                 if chip.clicked() {
                     // A second click on the active chip returns to every chat.
                     let next = if selected { ChatFilter::All } else { filter };
@@ -920,33 +934,47 @@ fn list(app: &mut App, ui: &mut egui::Ui) {
         return;
     }
     let chats: Vec<Chat> = app.visible_chats().into_iter().cloned().collect();
+    if chats.is_empty() && app.channels_tab() {
+        widgets::empty_state(
+            ui,
+            &palette,
+            Icon::RadioTower,
+            &crate::i18n::gettext(app.locale, "No channels"),
+            &crate::i18n::gettext(
+                app.locale,
+                "Follow a channel by its link with the + button above.",
+            ),
+        );
+        return;
+    }
     if chats.is_empty() {
-        // The favorites title is translated, so it is bound here: the tuple
-        // below borrows it for this frame, and every other arm stays a literal.
-        let favorites_title;
+        let locale = app.locale;
         let (title, body) = if app.show_archived {
-            ("Nothing archived", "Archived chats appear here.")
+            (
+                gettext(locale, "Nothing archived"),
+                gettext(locale, "Archived chats appear here."),
+            )
         } else if app.chat_filter != ChatFilter::All {
             let title = match app.chat_filter {
-                ChatFilter::Unread => "No unread chats",
-                ChatFilter::Private => "No private chats",
-                ChatFilter::Channels => "No channels",
-                ChatFilter::Favorites => {
-                    favorites_title = crate::i18n::gettext(app.locale, "No favorites yet");
-                    favorites_title.as_ref()
-                }
-                _ => "No groups",
+                ChatFilter::Unread => gettext(locale, "No unread chats"),
+                ChatFilter::Private => gettext(locale, "No private chats"),
+                ChatFilter::Channels => gettext(locale, "No channels"),
+                ChatFilter::Favorites => gettext(locale, "No favorites yet"),
+                _ => gettext(locale, "No groups"),
             };
-            (title, "Choose All to see every chat.")
+            (title, gettext(locale, "Choose All to see every chat."))
         } else if app.syncing {
-            ("Loading your chats", "Receiving history from your phone.")
+            (
+                gettext(locale, "Loading your chats"),
+                gettext(locale, "Receiving history from your phone."),
+            )
         } else {
             (
-                "No chats yet",
-                "Use New chat to message a contact or yourself.",
+                gettext(locale, "No chats yet"),
+                gettext(locale, "Use New chat to message a contact or yourself."),
             )
         };
-        widgets::empty_state(ui, &palette, Icon::MessageCircle, title, body);
+        widgets::empty_state(ui, &palette, Icon::MessageCircle, &title, &body);
         return;
     }
     // Rows touch: one clickable surface from top to bottom, no gaps or rules.
@@ -1087,7 +1115,7 @@ fn locked_entry(app: &mut App, ui: &mut egui::Ui) {
         ui.painter().text(
             pos2(rect.left() + 76.0, rect.center().y),
             egui::Align2::LEFT_CENTER,
-            "Locked chats",
+            crate::i18n::gettext(app.locale, "Locked chats"),
             theme::medium(14.5),
             palette.text,
         );
@@ -1116,8 +1144,11 @@ fn locked_list(app: &mut App, ui: &mut egui::Ui) {
             ui,
             &palette,
             Icon::LockOpen,
-            "No locked chats",
-            "Lock a chat from its context menu to hide it here.",
+            &crate::i18n::gettext(app.locale, "No locked chats"),
+            &crate::i18n::gettext(
+                app.locale,
+                "Lock a chat from its context menu to hide it here.",
+            ),
         );
         return;
     }
@@ -1176,10 +1207,22 @@ fn row_scroll_offset(
 fn results(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     let chats: Vec<Chat> = app.visible_chats().into_iter().cloned().collect();
-    let hits: Vec<Message> = app.search_hits.clone();
-    let contacts: Vec<Contact> = app.matching_contacts().into_iter().cloned().collect();
+    // The Channels tab searches the channels and their posts only.
+    let channels = app.channels_tab();
+    let hits: Vec<Message> = app
+        .search_hits
+        .iter()
+        .filter(|hit| !channels || hit.chat.ends_with("@newsletter"))
+        .cloned()
+        .collect();
+    let contacts: Vec<Contact> = if channels {
+        Vec::new()
+    } else {
+        app.matching_contacts().into_iter().cloned().collect()
+    };
     let needle = crate::util::search_key(app.search.trim());
-    let offer_self = !needle.is_empty()
+    let offer_self = !channels
+        && !needle.is_empty()
         && app.offers_self(&needle)
         && !chats
             .iter()
@@ -1189,8 +1232,8 @@ fn results(app: &mut App, ui: &mut egui::Ui) {
             ui,
             &palette,
             Icon::Search,
-            "No results",
-            "Try another name, number, or message text.",
+            &crate::i18n::gettext(app.locale, "No results"),
+            &crate::i18n::gettext(app.locale, "Try another name, number, or message text."),
         );
         return;
     }
@@ -1200,7 +1243,11 @@ fn results(app: &mut App, ui: &mut egui::Ui) {
         .auto_shrink([false, false])
         .show(ui, |ui| {
             if !chats.is_empty() {
-                section(ui, &palette, "Chats");
+                if channels {
+                    section(ui, &palette, &crate::i18n::gettext(app.locale, "Channels"));
+                } else {
+                    section(ui, &palette, &crate::i18n::gettext(app.locale, "Chats"));
+                }
                 for chat in &chats {
                     let reveal = ui.is_enabled()
                         && app.scroll_chat_into_view.as_deref() == Some(chat.id.as_str());
@@ -1214,13 +1261,13 @@ fn results(app: &mut App, ui: &mut egui::Ui) {
                 }
             }
             if !hits.is_empty() {
-                section(ui, &palette, "Messages");
+                section(ui, &palette, &crate::i18n::gettext(app.locale, "Messages"));
                 for hit in &hits {
                     ui.push_id(("hit", &hit.chat, &hit.id), |ui| hit_row(app, ui, hit));
                 }
             }
             if !contacts.is_empty() || offer_self {
-                section(ui, &palette, "Contacts");
+                section(ui, &palette, &crate::i18n::gettext(app.locale, "Contacts"));
                 if offer_self {
                     ui.push_id("self", |ui| self_row(app, ui));
                 }
@@ -1295,7 +1342,7 @@ fn hit_row(app: &mut App, ui: &mut egui::Ui, hit: &Message) {
         if hit.from_me {
             let who = widgets::line(
                 ui,
-                "You: ",
+                &format!("{}: ", crate::i18n::gettext(app.locale, "You")),
                 theme::regular(13.0),
                 palette.dim,
                 (right - x) * 0.5,
@@ -1470,7 +1517,7 @@ fn row(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> egui::Response {
             egui::WidgetType::SelectableLabel,
             ui.is_enabled(),
             selected,
-            unread_announcement(&title, chat),
+            unread_announcement(app.locale, &title, chat),
         )
     });
     if ui.is_rect_visible(rect) {
@@ -1568,9 +1615,10 @@ fn row(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> egui::Response {
         };
         let preview = if !typing.is_empty() {
             let who = if chat.is_group() {
-                format!("{} is typing…", typing[0].1.trim_start_matches('~'))
+                crate::i18n::gettext(app.locale, "{} is typing…")
+                    .replace("{}", typing[0].1.trim_start_matches('~'))
             } else {
-                "typing…".to_owned()
+                crate::i18n::gettext(app.locale, "typing…").into_owned()
             };
             widgets::line(
                 ui,
@@ -1679,15 +1727,15 @@ fn row(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> egui::Response {
     let menu_width = widgets::menu_width(
         ui,
         &[
-            "Mark as read",
-            "Mark as unread",
-            "Pin to top",
+            &crate::i18n::gettext(app.locale, "Mark as read"),
+            &crate::i18n::gettext(app.locale, "Mark as unread"),
+            &crate::i18n::gettext(app.locale, "Pin to top"),
             favorite_label.as_ref(),
-            "Unarchive",
+            &crate::i18n::gettext(app.locale, "Unarchive"),
             &crate::i18n::gettext(app.locale, "Leave group"),
             &crate::i18n::gettext(app.locale, "Leave channel"),
-            "Unlock chat",
-            "Copy number",
+            &crate::i18n::gettext(app.locale, "Unlock chat"),
+            &crate::i18n::gettext(app.locale, "Copy number"),
             &crate::i18n::gettext(app.locale, "Clear chat"),
             &crate::i18n::gettext(app.locale, "Delete chat"),
         ],
@@ -1699,8 +1747,8 @@ fn row(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> egui::Response {
             ui,
             &[
                 &crate::i18n::gettext(app.locale, "Mute"),
-                "Notification sound",
-                "Voice message speed",
+                &crate::i18n::gettext(app.locale, "Notification sound"),
+                &crate::i18n::gettext(app.locale, "Voice message speed"),
                 &crate::i18n::gettext(app.locale, "Labels"),
             ],
             true,
@@ -1874,6 +1922,43 @@ pub(super) fn compact_list(app: &mut App, ui: &mut egui::Ui) {
         }
         focused
     });
+    // An avatar Tab reaches below the window's edge scrolls this list and the
+    // rail both, which can leave it cut off at the list's top: for a few
+    // frames after it gains focus, scroll the list back until it all shows.
+    // Only then, or a wheel could never move a focused avatar out of view.
+    let settling = egui::Id::new("chat-rail-focus-settling");
+    if let Some(focused) = &output.inner
+        && focused.gained_focus()
+    {
+        ui.ctx().data_mut(|data| data.insert_temp(settling, 3_u8));
+    }
+    let frames = ui
+        .ctx()
+        .data(|data| data.get_temp::<u8>(settling))
+        .unwrap_or(0);
+    if frames > 0 {
+        ui.ctx()
+            .data_mut(|data| data.insert_temp(settling, frames - 1));
+    }
+    if !copy
+        && frames > 0
+        && let Some(focused) = &output.inner
+    {
+        let viewport = output.inner_rect;
+        let shift = if focused.rect.top() < viewport.top() {
+            focused.rect.top() - viewport.top()
+        } else if focused.rect.bottom() > viewport.bottom() {
+            focused.rect.bottom() - viewport.bottom()
+        } else {
+            0.0
+        };
+        if shift != 0.0 && focused.rect.height() <= viewport.height() {
+            let mut state = output.state;
+            state.offset.y = (state.offset.y + shift).max(0.0);
+            state.store(ui.ctx(), output.id);
+            ui.ctx().request_repaint();
+        }
+    }
     // The rail itself scrolls in a short window. The inner scroll area has
     // consumed the avatar's focus target; reveal its viewport in the outer
     // one as well, so a focused avatar cannot stay clipped by the rail.
@@ -1916,7 +2001,11 @@ fn compact_locked_entry(app: &mut App, ui: &mut egui::Ui) {
         ui.allocate_exact_size(vec2(ui.available_width(), COMPACT_CELL), Sense::click());
     theme::reveal_focus(&response);
     response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), "Locked chats")
+        egui::WidgetInfo::labeled(
+            egui::WidgetType::Button,
+            ui.is_enabled(),
+            crate::i18n::gettext(app.locale, "Locked chats"),
+        )
     });
     if ui.is_rect_visible(rect) {
         if response.hovered() {
@@ -1934,7 +2023,7 @@ fn compact_locked_entry(app: &mut App, ui: &mut egui::Ui) {
         .data_mut(|data| data.insert_temp(compact_locked_id(), response.rect));
     if response
         .on_hover_cursor(egui::CursorIcon::PointingHand)
-        .on_hover_text("Locked chats")
+        .on_hover_text(crate::i18n::gettext(app.locale, "Locked chats"))
         .clicked()
     {
         app.actions.push(Action::OpenLockedFolder);
@@ -1961,7 +2050,7 @@ fn compact_row(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> egui::Response 
             egui::WidgetType::SelectableLabel,
             ui.is_enabled(),
             selected,
-            unread_announcement(&title, chat),
+            unread_announcement(app.locale, &title, chat),
         )
     });
     if ui.is_rect_visible(rect) {
@@ -2187,13 +2276,18 @@ fn context_menu(app: &mut App, ui: &mut egui::Ui, chat: &Chat, palette: &Palette
 
 /// What a screen reader reads out for a chat's unread state. A chat marked
 /// unread by hand has no count to read, so it must not announce zero.
-fn unread_announcement(title: &str, chat: &Chat) -> String {
+fn unread_announcement(locale: crate::i18n::Locale, title: &str, chat: &Chat) -> String {
+    let count = chat.unread.to_string();
     if chat.marked_unread && chat.unread == 0 {
-        format!("{title}, unread")
+        gettext(locale, "{title}, unread").replace("{title}", title)
     } else if chat.unread > 0 && chat.unread_mention.is_some() {
-        format!("{title}, {} unread messages, mentioned you", chat.unread)
+        gettext(locale, "{title}, {count} unread messages, mentioned you")
+            .replace("{title}", title)
+            .replace("{count}", &count)
     } else {
-        format!("{title}, {} unread messages", chat.unread)
+        gettext(locale, "{title}, {count} unread messages")
+            .replace("{title}", title)
+            .replace("{count}", &count)
     }
 }
 
@@ -2208,7 +2302,10 @@ fn sound_menu(app: &mut App, ui: &mut egui::Ui, palette: &Palette, chat: &Chat) 
     let sounds: [(Option<NotificationSound>, std::borrow::Cow<'static, str>); 5] = [
         (None, default_label),
         (Some(NotificationSound::Receive), "Pidgin".into()),
-        (Some(NotificationSound::Alert), "Pidgin alert".into()),
+        (
+            Some(NotificationSound::Alert),
+            crate::i18n::gettext(locale, "Pidgin alert"),
+        ),
         (Some(NotificationSound::System), system_label),
         (Some(NotificationSound::None), none_label),
     ];
@@ -2278,10 +2375,8 @@ fn mute_menu(app: &mut App, ui: &mut egui::Ui, palette: &Palette, chat: &Chat, n
 fn voice_speed_menu(app: &mut App, ui: &mut egui::Ui, palette: &Palette, chat: &Chat) {
     let options: Vec<(Option<f32>, String)> = std::iter::once((
         None,
-        format!(
-            "Default ({})",
-            crate::audio::speed_label(app.settings.voice_speed)
-        ),
+        crate::i18n::gettext(app.locale, "Default ({})")
+            .replace("{}", &crate::audio::speed_label(app.settings.voice_speed)),
     ))
     .chain(
         crate::audio::SPEEDS
@@ -2294,7 +2389,7 @@ fn voice_speed_menu(app: &mut App, ui: &mut egui::Ui, palette: &Palette, chat: &
         ui,
         palette,
         Icon::Play,
-        "Voice message speed",
+        &crate::i18n::gettext(app.locale, "Voice message speed"),
         &items,
         |ui| {
             for (speed, label) in &options {

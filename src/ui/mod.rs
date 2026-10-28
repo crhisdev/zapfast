@@ -573,14 +573,14 @@ fn banner(app: &mut App, ui: &mut egui::Ui) {
         LinkStatus::Disconnected { reason } => (
             Icon::WifiOff,
             crate::i18n::gettext(app.locale, "Offline ({reason}). Reconnecting…")
-                .replace("{reason}", reason),
+                .replace("{reason}", &crate::i18n::localize(app.locale, reason)),
             palette.warning,
             true,
             None,
         ),
         LinkStatus::Failed(message) => (
             Icon::CircleAlert,
-            message.clone(),
+            crate::i18n::localize(app.locale, message),
             palette.danger,
             true,
             None,

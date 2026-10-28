@@ -3098,6 +3098,7 @@ pub fn apply_flags(app: &mut App, page: Option<&str>) {
             }
             "invite" => {
                 app.invite = Some(crate::model::GroupInvite {
+                    channel: false,
                     code: "DemoInviteCode123".into(),
                     state: crate::model::InviteState::Ready(crate::model::InviteInfo {
                         id: "120363000000000000@g.us".into(),
@@ -3212,6 +3213,17 @@ pub fn apply_flags(app: &mut App, page: Option<&str>) {
                 app.settings.custom_theme_cache = Some(crate::theme::CustomTheme {
                     filename: "Messages light.json".into(),
                     palette: crate::theme::Palette::messages_light(),
+                });
+            }
+            "graphite" => {
+                app.settings.theme = ThemeChoice::Graphite;
+            }
+            // Graphite follows the system too; this shows its light side.
+            "graphite-light" => {
+                app.settings.custom_theme = Some("Graphite light.json".into());
+                app.settings.custom_theme_cache = Some(crate::theme::CustomTheme {
+                    filename: "Graphite light.json".into(),
+                    palette: crate::theme::Palette::graphite_light(),
                 });
             }
             "login" => {
@@ -7012,7 +7024,7 @@ mod tests {
     /// in the message list, as a mixed keyboard and mouse user does.
     fn open_channel_with_the_pointer(app: &mut App, ctx: &egui::Context) -> String {
         let channel = channel(app);
-        // Channels are listed under their own filter.
+        // Channels are listed in their own tab.
         app.chat_filter = crate::model::ChatFilter::Channels;
         render(app, ctx);
         press_key(app, ctx, egui::Key::Num2, messages_shortcut());
@@ -14406,15 +14418,20 @@ mod tests {
                 .map(|(_, node)| node)
                 .collect();
         }
-        // The update lists nodes in hash order, which any other widget on
-        // screen can shuffle; which row is muted is checked below.
+        // Top to bottom: the tree's node order follows widget ids, not rows.
         let mut bells: Vec<_> = nodes
             .iter()
             .filter(|node| node.label() == Some("Mute notifications"))
-            .map(|node| node.toggled() == Some(egui::accesskit::Toggled::True))
+            .map(|node| {
+                (
+                    node.bounds().map_or(0.0, |bounds| bounds.y0),
+                    node.toggled() == Some(egui::accesskit::Toggled::True),
+                )
+            })
             .collect();
-        bells.sort();
-        assert_eq!(bells, [false, true], "one bell per account, one on");
+        bells.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let bells: Vec<_> = bells.into_iter().map(|(_, on)| on).collect();
+        assert_eq!(bells, [false, true], "one bell per account, the second on");
         // Only the muted account's row says so, not the one on screen.
         let said: Vec<_> = nodes
             .iter()
@@ -18158,8 +18175,10 @@ mod tests {
             .unwrap()
             .rect;
         assert!(locked.bottom() <= settings.top());
+        // Channels is a rail tab, not a chip.
         let chips: Vec<_> = crate::model::ChatFilter::EVERY
             .into_iter()
+            .filter(|filter| *filter != crate::model::ChatFilter::Channels)
             .map(|filter| {
                 ctx.data(|data| {
                     data.get_temp::<egui::Rect>(crate::ui::chats::filter_chip_id(filter))
@@ -19238,6 +19257,7 @@ mod tests {
                 Stop::Messages,
                 Stop::Chats,
                 Stop::Calls,
+                Stop::Channels,
                 Stop::Status,
                 Stop::Starred,
                 Stop::Archived,
@@ -19252,7 +19272,6 @@ mod tests {
                 Stop::Private,
                 Stop::Favorites,
                 Stop::Groups,
-                Stop::Channels,
             ];
             assert_eq!(
                 crate::ui::focus::stops(&ctx)
@@ -19304,7 +19323,7 @@ mod tests {
             assert!(ctx.read_response(row).unwrap().sense.is_focusable());
             for (modifiers, expected_stop) in [
                 (egui::Modifiers::NONE, Stop::Composer),
-                (egui::Modifiers::SHIFT, Stop::Channels),
+                (egui::Modifiers::SHIFT, Stop::Groups),
             ] {
                 ctx.memory_mut(|memory| memory.request_focus(row));
                 frame_sized(&mut app, &ctx, 780.0, vec![key(egui::Key::Tab, modifiers)]);
@@ -19356,6 +19375,7 @@ mod tests {
                         Stop::Messages,
                         Stop::Chats,
                         Stop::Calls,
+                        Stop::Channels,
                         Stop::Status,
                         Stop::Starred,
                         Stop::Archived,

@@ -192,9 +192,9 @@ fn list(app: &mut App, ui: &mut egui::Ui, rect: Rect, narrow: bool) {
             let mut section = None;
             for author in &authors {
                 let heading = match (author.from_me, author.unseen) {
-                    (true, _) => "My status",
-                    (false, true) => "Recent updates",
-                    (false, false) => "Viewed updates",
+                    (true, _) => crate::i18n::gettext_noop("My status"),
+                    (false, true) => crate::i18n::gettext_noop("Recent updates"),
+                    (false, false) => crate::i18n::gettext_noop("Viewed updates"),
                 };
                 if section != Some(heading) {
                     section = Some(heading);
@@ -497,8 +497,18 @@ fn viewer(app: &mut App, ui: &mut egui::Ui, rect: Rect, author: &str, id: &str) 
     }
     let middle = (area.top() + area.bottom()) / 2.0;
     for (step, icon, label, x) in [
-        (-1, Icon::ChevronLeft, "Previous status", rect.left() + 32.0),
-        (1, Icon::ChevronRight, "Next status", rect.right() - 32.0),
+        (
+            -1,
+            Icon::ChevronLeft,
+            crate::i18n::gettext_noop("Previous status"),
+            rect.left() + 32.0,
+        ),
+        (
+            1,
+            Icon::ChevronRight,
+            crate::i18n::gettext_noop("Next status"),
+            rect.right() - 32.0,
+        ),
     ] {
         let target = neighbour(&app.statuses, &app.statuses_seen, author, id, step);
         if target.is_none() {

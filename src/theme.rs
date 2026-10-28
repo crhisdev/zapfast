@@ -35,25 +35,25 @@ pub fn presets() -> impl Iterator<Item = CustomTheme> {
 pub fn theme_status(status: fastframe_theme::Status) -> &'static str {
     use fastframe_theme::{Problem, Status};
     match status {
-        Status::Loading => "Loading local themes…",
-        Status::SelectedUnavailable => {
-            "The selected theme is unavailable. Keeping the last usable appearance. See the log for details."
-        }
-        Status::Problem(Problem::Unreadable) => {
-            "The themes folder could not be read. See the log for details."
-        }
-        Status::Problem(Problem::TooManyEntries) => {
-            "The themes folder has more than 512 entries. Keep fewer files there to list the custom palettes."
-        }
-        Status::Problem(Problem::TooManyThemes) => {
-            "Only 128 custom palettes can be listed. Keep fewer JSON files in the themes folder to see the rest."
-        }
-        Status::Problem(Problem::OmarchyUnreadable) => {
-            "The Omarchy palette could not be loaded. Keeping the last usable appearance. See the log for details."
-        }
-        Status::Problem(Problem::LoaderFailed | _) => {
-            "Custom themes could not be loaded. Run zapfast reload-themes to try again."
-        }
+        Status::Loading => crate::i18n::gettext_noop("Loading local themes…"),
+        Status::SelectedUnavailable => crate::i18n::gettext_noop(
+            "The selected theme is unavailable. Keeping the last usable appearance. See the log for details.",
+        ),
+        Status::Problem(Problem::Unreadable) => crate::i18n::gettext_noop(
+            "The themes folder could not be read. See the log for details.",
+        ),
+        Status::Problem(Problem::TooManyEntries) => crate::i18n::gettext_noop(
+            "The themes folder has more than 512 entries. Keep fewer files there to list the custom palettes.",
+        ),
+        Status::Problem(Problem::TooManyThemes) => crate::i18n::gettext_noop(
+            "Only 128 custom palettes can be listed. Keep fewer JSON files in the themes folder to see the rest.",
+        ),
+        Status::Problem(Problem::OmarchyUnreadable) => crate::i18n::gettext_noop(
+            "The Omarchy palette could not be loaded. Keeping the last usable appearance. See the log for details.",
+        ),
+        Status::Problem(Problem::LoaderFailed | _) => crate::i18n::gettext_noop(
+            "Custom themes could not be loaded. Run zapfast reload-themes to try again.",
+        ),
     }
 }
 
@@ -198,6 +198,69 @@ impl Palette {
             link: Color32::from_rgb(0x00, 0x66, 0xcc),
             read: Color32::from_rgb(0x00, 0x66, 0xcc),
             bubbles: BubbleStyle::Messages,
+        }
+    }
+
+    /// Graphite: neutral greys with no blue or green cast, surfaces raised
+    /// by lightness alone, and one accent, the teal of Pix, on the actions
+    /// and your own bubbles. Secondary and dim text reach WCAG AA (4.5:1) on
+    /// the window, panel, surface, and menu colours.
+    pub fn graphite() -> Self {
+        Self {
+            dark: true,
+            window: Color32::from_rgb(0x0c, 0x0c, 0x0c),
+            panel: Color32::from_rgb(0x14, 0x14, 0x14),
+            surface: Color32::from_rgb(0x1f, 0x1f, 0x1f),
+            surface_hover: Color32::from_rgb(0x28, 0x28, 0x28),
+            surface_active: Color32::from_rgb(0x32, 0x32, 0x32),
+            outline: Color32::from_rgb(0x26, 0x26, 0x26),
+            text: Color32::from_rgb(0xf2, 0xf2, 0xf2),
+            secondary: Color32::from_rgb(0xb4, 0xb4, 0xb4),
+            dim: Color32::from_rgb(0x9a, 0x9a, 0x9a),
+            accent: Color32::from_rgb(0x32, 0xbc, 0xad),
+            accent_hover: Color32::from_rgb(0x4f, 0xd1, 0xc2),
+            on_accent: Color32::from_rgb(0x0c, 0x0c, 0x0c),
+            danger: Color32::from_rgb(0xff, 0x6b, 0x6b),
+            warning: Color32::from_rgb(0xf5, 0xc4, 0x51),
+            overlay: Color32::from_rgb(0x1e, 0x1e, 0x1e),
+            shadow: Color32::from_black_alpha(160),
+            chat: Color32::from_rgb(0x0c, 0x0c, 0x0c),
+            bubble_in: Color32::from_rgb(0x1c, 0x1c, 0x1c),
+            bubble_out: Color32::from_rgb(0x16, 0x3d, 0x39),
+            link: Color32::from_rgb(0x7f, 0xe0, 0xd4),
+            read: Color32::from_rgb(0x7f, 0xe0, 0xd4),
+            bubbles: BubbleStyle::WhatsApp,
+        }
+    }
+
+    /// Graphite in light greys: white panels on an off-white ground, the
+    /// teal deepened so white reads on it, and your own bubbles in its
+    /// palest tint.
+    pub fn graphite_light() -> Self {
+        Self {
+            dark: false,
+            window: Color32::from_rgb(0xf5, 0xf5, 0xf5),
+            panel: Color32::WHITE,
+            surface: Color32::from_rgb(0xf2, 0xf2, 0xf2),
+            surface_hover: Color32::from_rgb(0xe9, 0xe9, 0xe9),
+            surface_active: Color32::from_rgb(0xde, 0xde, 0xde),
+            outline: Color32::from_rgb(0xe6, 0xe6, 0xe6),
+            text: Color32::from_rgb(0x11, 0x11, 0x11),
+            secondary: Color32::from_rgb(0x5c, 0x5c, 0x5c),
+            dim: Color32::from_rgb(0x66, 0x66, 0x66),
+            accent: Color32::from_rgb(0x0d, 0x7d, 0x72),
+            accent_hover: Color32::from_rgb(0x0a, 0x6a, 0x61),
+            on_accent: Color32::WHITE,
+            danger: Color32::from_rgb(0xc6, 0x28, 0x28),
+            warning: Color32::from_rgb(0x8a, 0x5a, 0x00),
+            overlay: Color32::WHITE,
+            shadow: Color32::from_black_alpha(LIGHT_SHADOW_ALPHA),
+            chat: Color32::from_rgb(0xee, 0xee, 0xec),
+            bubble_in: Color32::WHITE,
+            bubble_out: Color32::from_rgb(0xd5, 0xf2, 0xee),
+            link: Color32::from_rgb(0x0a, 0x6a, 0x61),
+            read: Color32::from_rgb(0x0d, 0x7d, 0x72),
+            bubbles: BubbleStyle::WhatsApp,
         }
     }
 
@@ -951,6 +1014,7 @@ fastframe_icons::icons! {
         Play => lucide "play",
         Plus => lucide "plus",
         QrCode => "qr-code",
+        RadioTower => "radio-tower",
         Refresh => lucide "refresh-cw",
         RotateLeft => "rotate-ccw",
         RotateRight => "rotate-cw",
@@ -1673,6 +1737,8 @@ mod tests {
             ("light", Palette::light()),
             ("messages", Palette::messages()),
             ("messages light", Palette::messages_light()),
+            ("graphite", Palette::graphite()),
+            ("graphite light", Palette::graphite_light()),
         ] {
             let mut pairs = Vec::new();
             for (surface, background) in [
@@ -1782,6 +1848,8 @@ mod tests {
             ("light", Palette::light()),
             ("messages", Palette::messages()),
             ("messages light", Palette::messages_light()),
+            ("graphite", Palette::graphite()),
+            ("graphite light", Palette::graphite_light()),
         ]
         .into_iter()
         .map(|(name, palette)| (name.to_owned(), palette))

@@ -31,6 +31,7 @@ pub enum Stop {
     /// list is hidden, and keeps Hide the chat list's place in the order.
     Chats,
     Calls,
+    Channels,
     Status,
     Starred,
     Archived,
@@ -49,7 +50,6 @@ pub enum Stop {
     Private,
     Favorites,
     Groups,
-    Channels,
     /// One chip in the label row, by its position among the labels.
     Label(u8),
     ManageLabels,
@@ -252,7 +252,7 @@ mod tests {
             (Some(Stop::Composer), -1, 2),
             (Some(Stop::Attach), 1, 2),
             (Some(Stop::Attach), -1, 1),
-            (Some(Stop::Channels), 1, 0),
+            (Some(Stop::Groups), 1, 0),
             (None, 1, 0),
             (None, -1, 2),
             (Some(Stop::Composer), 5, 2),

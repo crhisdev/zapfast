@@ -1034,6 +1034,20 @@ pub enum Command {
         code: String,
         result: Result<(ChatId, bool), String>,
     },
+    /// Looks up the channel behind a channel link without following it.
+    /// Answers with `Event::InvitePreview`.
+    PreviewChannel(String),
+    /// Follows the channel `id` previewed from link `code`. Answers with
+    /// `Event::InviteJoined`.
+    FollowChannel {
+        code: String,
+        id: ChatId,
+    },
+    /// Internal result of following a channel: its id and name.
+    ChannelFollowed {
+        code: String,
+        result: Result<(ChatId, String), String>,
+    },
     /// Ask GitHub whether a newer release exists.
     CheckForUpdates,
     InspectUpdate,
