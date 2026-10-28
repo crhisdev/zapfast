@@ -417,7 +417,12 @@ impl Worker {
         self.flows.remove(&(chat.clone(), message.clone()));
         let identities = self.identities(&chat);
         let commands = self.commands.clone();
-        let biz = chat.clone();
+        // WhatsApp Web asks by phone number, in its own `@c.us` form, and
+        // sends an empty id for a business it knows only by privacy id.
+        let biz = Self::jid_of(&chat)
+            .and_then(|jid| if jid.is_lid() { self.alt_jid(&jid) } else { Some(jid) })
+            .map(|jid| format!("{}@c.us", jid.user_base()))
+            .unwrap_or_default();
         tokio::spawn(async move {
             let result = open(client, biz, identities, params).await;
             let _ = commands.send(Command::FlowOpened {

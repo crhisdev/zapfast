@@ -5416,6 +5416,102 @@ msgstr "Resposta enviada."
 msgid "Opening the form…"
 msgstr "Abrindo o formulário…"
 
+#: src/backend/worker/flows.rs
+msgid "Part of this form only shows on your phone."
+msgstr "Parte deste formulário só aparece no seu celular."
+
+#: src/backend/worker/flows.rs
+msgid "Read more"
+msgstr "Ler mais"
+
+#: src/backend/worker/flows.rs
+msgid "The answer could not be sent"
+msgstr "Não foi possível enviar a resposta"
+
+#: src/backend/worker/flows.rs
+msgid "This form is no longer open"
+msgstr "Este formulário não está mais aberto"
+
+#: src/backend/worker/flows.rs
+msgid "This form is unavailable"
+msgstr "Este formulário não está disponível"
+
+#: src/backend/worker/flows.rs
+msgid "WhatsApp did not describe this form"
+msgstr "O WhatsApp não enviou a descrição deste formulário"
+
+#: src/backend/worker/flows.rs
+msgid "could not download the form"
+msgstr "não foi possível baixar o formulário"
+
+#: src/backend/worker/flows.rs
+msgid "could not reach the business"
+msgstr "não foi possível falar com a empresa"
+
+#: src/backend/worker/flows.rs
+msgid "encryption failed"
+msgstr "a criptografia falhou"
+
+#: src/backend/worker/flows.rs
+msgid "one request at a time"
+msgstr "uma solicitação por vez"
+
+#: src/backend/worker/flows.rs
+msgid "the business could not answer"
+msgstr "a empresa não conseguiu responder"
+
+#: src/backend/worker/flows.rs
+msgid "the business sent a reply that is not base64"
+msgstr "a empresa enviou uma resposta inválida"
+
+#: src/backend/worker/flows.rs
+msgid "the business took too long to answer"
+msgstr "a empresa demorou demais para responder"
+
+#: src/backend/worker/flows.rs
+msgid "the business's answer has no screen"
+msgstr "a resposta da empresa não tem tela"
+
+#: src/backend/worker/flows.rs
+msgid "the business's answer is not valid"
+msgstr "a resposta da empresa não é válida"
+
+#: src/backend/worker/flows.rs
+msgid "the business's public key is invalid"
+msgstr "a chave pública da empresa é inválida"
+
+#: src/backend/worker/flows.rs
+msgid "the business's public key is too small"
+msgstr "a chave pública da empresa é pequena demais"
+
+#: src/backend/worker/flows.rs
+msgid "the business's reply could not be decrypted"
+msgstr "não foi possível descriptografar a resposta da empresa"
+
+#: src/backend/worker/flows.rs
+msgid "the business's reply is not text"
+msgstr "a resposta da empresa não é texto"
+
+#: src/backend/worker/flows.rs
+msgid "the form WhatsApp sent has no screens"
+msgstr "o formulário enviado pelo WhatsApp não tem telas"
+
+#: src/backend/worker/flows.rs
+msgid "the form WhatsApp sent is not valid"
+msgstr "o formulário enviado pelo WhatsApp não é válido"
+
+#: src/backend/worker/flows.rs
+msgid "this business's encryption key could not be confirmed"
+msgstr "não foi possível confirmar a chave de criptografia desta empresa"
+
+#: src/backend/worker/flows.rs
+msgid "this form cannot talk to the business"
+msgstr "este formulário não consegue falar com a empresa"
+
+#: src/backend/worker/flows.rs
+msgid "this form has expired"
+msgstr "este formulário expirou"
+
 #~ msgid "Back to the chats"
 #~ msgstr "Voltar para as conversas"
 

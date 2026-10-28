@@ -51,3 +51,4 @@ src/ui/keys.rs
 src/backend/worker/follow_channel.rs
 src/ui/flows.rs
 src/ui/status.rs
+src/backend/worker/flows.rs

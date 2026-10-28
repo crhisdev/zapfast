@@ -5182,3 +5182,99 @@ msgstr ""
 #: src/ui/flows.rs
 msgid "Opening the form…"
 msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "Part of this form only shows on your phone."
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "Read more"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "The answer could not be sent"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "This form is no longer open"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "This form is unavailable"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "WhatsApp did not describe this form"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "could not download the form"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "could not reach the business"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "encryption failed"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "one request at a time"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the business could not answer"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the business sent a reply that is not base64"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the business took too long to answer"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the business's answer has no screen"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the business's answer is not valid"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the business's public key is invalid"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the business's public key is too small"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the business's reply could not be decrypted"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the business's reply is not text"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the form WhatsApp sent has no screens"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "the form WhatsApp sent is not valid"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "this business's encryption key could not be confirmed"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "this form cannot talk to the business"
+msgstr ""
+
+#: src/backend/worker/flows.rs
+msgid "this form has expired"
+msgstr ""
