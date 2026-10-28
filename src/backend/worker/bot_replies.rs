@@ -11,7 +11,7 @@ use whatsapp_rust::waproto::whatsapp::AIRichResponseMessage;
 use whatsapp_rust::waproto::whatsapp::AIRichResponseSubMessage;
 
 /// What an unreadable reply is called in its placeholder.
-const UNREADABLE: &str = "Meta AI reply";
+const UNREADABLE: &str = crate::i18n::gettext_noop("Meta AI reply");
 
 /// The message inside a Meta AI invocation, unwrapped like the library's own
 /// wrappers.

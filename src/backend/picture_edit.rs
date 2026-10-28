@@ -18,8 +18,10 @@ pub struct Edited {
 
 /// A picture's size, read without keeping its pixels.
 pub fn inspect(bytes: &[u8]) -> Result<(u32, u32), String> {
-    let picture = image::load_from_memory(bytes)
-        .map_err(|error| format!("This picture could not be read: {error}"))?;
+    let picture = image::load_from_memory(bytes).map_err(|error| {
+        crate::i18n::gettext_noop("This picture could not be read: {error}")
+            .replace("{error}", &error.to_string())
+    })?;
     Ok((picture.width(), picture.height()))
 }
 
@@ -27,7 +29,10 @@ pub fn inspect(bytes: &[u8]) -> Result<(u32, u32), String> {
 /// crop is measured in the turned picture, which is what the editor showed.
 pub fn edit(bytes: &[u8], crop: PictureCrop, turns: u8) -> Result<Edited, String> {
     let picture = image::load_from_memory(bytes)
-        .map_err(|error| format!("This picture could not be read: {error}"))?
+        .map_err(|error| {
+            crate::i18n::gettext_noop("This picture could not be read: {error}")
+                .replace("{error}", &error.to_string())
+        })?
         .to_rgba8();
     turned_and_cropped(picture, crop, turns)
 }
@@ -41,7 +46,7 @@ pub fn edit_pasted(
     turns: u8,
 ) -> Result<Edited, String> {
     let picture = image::RgbaImage::from_raw(width.max(1), height.max(1), rgba.to_vec())
-        .ok_or_else(|| "This picture could not be read".to_owned())?;
+        .ok_or_else(|| crate::i18n::gettext_noop("This picture could not be read").to_owned())?;
     turned_and_cropped(picture, crop, turns)
 }
 
@@ -102,7 +107,10 @@ fn encode(picture: &image::RgbaImage) -> Result<Edited, String> {
                 height,
                 image::ExtendedColorType::Rgba8,
             )
-            .map_err(|error| format!("Could not write the picture: {error}"))?;
+            .map_err(|error| {
+                crate::i18n::gettext_noop("Could not write the picture: {error}")
+                    .replace("{error}", &error.to_string())
+            })?;
         return Ok(Edited {
             bytes,
             extension: "png",
@@ -116,7 +124,10 @@ fn encode(picture: &image::RgbaImage) -> Result<Edited, String> {
             height,
             image::ExtendedColorType::Rgb8,
         )
-        .map_err(|error| format!("Could not write the picture: {error}"))?;
+        .map_err(|error| {
+            crate::i18n::gettext_noop("Could not write the picture: {error}")
+                .replace("{error}", &error.to_string())
+        })?;
     Ok(Edited {
         bytes,
         extension: "jpg",

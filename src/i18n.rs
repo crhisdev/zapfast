@@ -10,6 +10,35 @@ use serde::{Deserialize, Serialize};
 
 include!(concat!(env!("OUT_DIR"), "/catalogs.rs"));
 
+/// Marks a message for extraction where no locale is at hand, such as a
+/// worker's error or a constant table; [`localize`] translates it when shown.
+pub const fn gettext_noop(source: &'static str) -> &'static str {
+    source
+}
+
+/// Translates a message marked with [`gettext_noop`] that reached the UI as
+/// text. Anything the catalog does not know is shown as it came.
+/// A message made from a template ending in ": {error}" is translated by its
+/// template, with the error after it translated in turn.
+pub fn localize(locale: Locale, message: &str) -> String {
+    use fastframe_i18n::Locale as _;
+    let Some(catalog) = locale.catalog() else {
+        return message.to_owned();
+    };
+    let whole = catalog.translate(message, None);
+    if whole != message {
+        return whole.into_owned();
+    }
+    if let Some((what, why)) = message.split_once(": ") {
+        let template = format!("{what}: {{error}}");
+        let translated = catalog.translate(&template, None);
+        if translated != template {
+            return translated.replace("{error}", &localize(locale, why));
+        }
+    }
+    message.to_owned()
+}
+
 /// The interface languages ZapFast knows about.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Locale {
@@ -147,6 +176,24 @@ pub fn resolve(interface_language: Option<Locale>) -> Locale {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn worker_messages_are_translated_whole_or_by_their_template() {
+        let pt = Locale::PortugueseBrazil;
+        assert_eq!(
+            localize(pt, "Not connected to WhatsApp"),
+            "Não conectado ao WhatsApp"
+        );
+        assert_eq!(
+            localize(pt, "Could not send the file: Download timed out"),
+            "Não foi possível enviar o arquivo: O download expirou"
+        );
+        assert_eq!(localize(pt, "disk full: 42"), "disk full: 42");
+        assert_eq!(
+            localize(Locale::English, "Not connected to WhatsApp"),
+            "Not connected to WhatsApp"
+        );
+    }
 
     #[test]
     fn system_locales_map_to_the_right_catalog() {

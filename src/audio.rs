@@ -410,7 +410,7 @@ impl Player {
             let Decoding { message, start, .. } = self.decoding.take().expect("just seen");
             let samples = result?;
             if samples.is_empty() {
-                return Err("The clip is empty".to_owned());
+                return Err(crate::i18n::gettext_noop("The clip is empty").to_owned());
             }
             let samples = Arc::new(samples);
             self.bars
@@ -487,7 +487,10 @@ impl Player {
         }
         if recent {
             loaded.paused = true;
-            return Err("The sound output stopped working. Press play to try again".to_owned());
+            return Err(crate::i18n::gettext_noop(
+                "The sound output stopped working. Press play to try again",
+            )
+            .to_owned());
         }
         self.restart(fraction)
     }
@@ -506,7 +509,8 @@ impl Player {
                 waker.wake();
             });
         if let Err(error) = spawned {
-            return Err(format!("Could not decode audio: {error}"));
+            return Err(crate::i18n::gettext_noop("Could not decode audio: {error}")
+                .replace("{error}", &error.to_string()));
         }
         self.decoding = Some(Decoding {
             message: message.to_owned(),
@@ -570,17 +574,23 @@ fn clip_length(samples: usize) -> Duration {
 /// Decodes a file to mono 48 kHz samples. OGG/Opus uses `voice`; other
 /// supported formats use rodio.
 fn decode_file(path: &Path) -> Result<Vec<f32>, String> {
-    let bytes =
-        std::fs::read(path).map_err(|error| format!("Could not read the audio: {error}"))?;
+    let bytes = std::fs::read(path).map_err(|error| {
+        crate::i18n::gettext_noop("Could not read the audio: {error}")
+            .replace("{error}", &error.to_string())
+    })?;
     if bytes.starts_with(b"OggS")
         && let Ok(samples) = voice::decode(&bytes)
     {
         return Ok(samples);
     }
-    let file =
-        std::fs::File::open(path).map_err(|error| format!("Could not read the audio: {error}"))?;
-    let decoder = rodio::Decoder::new(std::io::BufReader::new(file))
-        .map_err(|error| format!("Could not decode the audio: {error}"))?;
+    let file = std::fs::File::open(path).map_err(|error| {
+        crate::i18n::gettext_noop("Could not read the audio: {error}")
+            .replace("{error}", &error.to_string())
+    })?;
+    let decoder = rodio::Decoder::new(std::io::BufReader::new(file)).map_err(|error| {
+        crate::i18n::gettext_noop("Could not decode the audio: {error}")
+            .replace("{error}", &error.to_string())
+    })?;
     let channels = decoder.channels().get();
     let rate = decoder.sample_rate().get();
     let interleaved: Vec<f32> = decoder.collect();
@@ -847,7 +857,10 @@ fn record_from<M: Iterator<Item = f32>>(
                 let block = (chunk_len(channels, rate) / 5).max(1);
                 read_microphone(&mut microphone, block, &done, &samples_tx);
             })
-            .map_err(|error| format!("Could not start recording: {error}"))?;
+            .map_err(|error| {
+                crate::i18n::gettext_noop("Could not start recording: {error}")
+                    .replace("{error}", &error.to_string())
+            })?;
     }
     let outcome = loop {
         match opened.recv_timeout(POLL_MICROPHONE) {

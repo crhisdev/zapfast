@@ -237,7 +237,7 @@ impl Text {
         });
         Content::Interactive {
             text: if self.parts.is_empty() {
-                "Interactive message".into()
+                crate::i18n::gettext_noop("Interactive message").into()
             } else {
                 self.parts.join("\n\n")
             },

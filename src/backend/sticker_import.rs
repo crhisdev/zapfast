@@ -20,10 +20,14 @@ pub fn parse_signal_url(url: &str) -> Result<(String, [u8; 32]), String> {
     }
     let id = id
         .filter(|id| id.len() == 32 && id.bytes().all(|byte| byte.is_ascii_hexdigit()))
-        .ok_or("Missing pack_id. Copy the full signal.art link")?;
+        .ok_or(crate::i18n::gettext_noop(
+            "Missing pack_id. Copy the full signal.art link",
+        ))?;
     let key = key
         .and_then(|key| hex_bytes(&key))
-        .ok_or("Missing or invalid pack_key. Copy the full signal.art link")?;
+        .ok_or(crate::i18n::gettext_noop(
+            "Missing or invalid pack_key. Copy the full signal.art link",
+        ))?;
     Ok((id, key))
 }
 
@@ -49,26 +53,26 @@ pub fn decrypt_blob(payload: &[u8], pack_key: &[u8; 32]) -> Result<Vec<u8>, Stri
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
     if payload.len() < 16 + 16 + 32 {
-        return Err("The sticker data is incomplete".to_owned());
+        return Err(crate::i18n::gettext_noop("The sticker data is incomplete").to_owned());
     }
     let mut keys = [0u8; 64];
     hkdf::Hkdf::<Sha256>::new(Some(&[0u8; 32]), pack_key)
         .expand(b"Sticker Pack", &mut keys)
-        .map_err(|_| "Could not derive the sticker key".to_owned())?;
+        .map_err(|_| crate::i18n::gettext_noop("Could not derive the sticker key").to_owned())?;
     let (aes_key, mac_key) = keys.split_at(32);
     let (iv, rest) = payload.split_at(16);
     let (ciphertext, mac) = rest.split_at(rest.len() - 32);
     let mut hmac = <Hmac<Sha256> as KeyInit>::new_from_slice(mac_key)
-        .map_err(|_| "Could not derive the sticker key".to_owned())?;
+        .map_err(|_| crate::i18n::gettext_noop("Could not derive the sticker key").to_owned())?;
     hmac.update(iv);
     hmac.update(ciphertext);
     hmac.verify_slice(mac)
-        .map_err(|_| "The key does not match this pack".to_owned())?;
+        .map_err(|_| crate::i18n::gettext_noop("The key does not match this pack").to_owned())?;
     let iv: [u8; 16] = iv.try_into().expect("split at 16");
     let aes_key: [u8; 32] = aes_key.try_into().expect("split at 32");
     cbc::Decryptor::<aes::Aes256>::new(&aes_key.into(), &iv.into())
         .decrypt_padded_vec::<Pkcs7>(ciphertext)
-        .map_err(|_| "Could not decrypt the sticker pack".to_owned())
+        .map_err(|_| crate::i18n::gettext_noop("Could not decrypt the sticker pack").to_owned())
 }
 
 /// One sticker in a Signal manifest: its id and the emoji it expresses.
@@ -121,14 +125,14 @@ fn read_varint(bytes: &[u8], pos: &mut usize) -> Result<u64, String> {
     for shift in 0..10 {
         let byte = *bytes
             .get(*pos)
-            .ok_or("The sticker manifest is incomplete".to_owned())?;
+            .ok_or(crate::i18n::gettext_noop("The sticker manifest is incomplete").to_owned())?;
         *pos += 1;
         value |= u64::from(byte & 0x7f) << (shift * 7);
         if byte & 0x80 == 0 {
             return Ok(value);
         }
     }
-    Err("The sticker manifest contains an invalid number".to_owned())
+    Err(crate::i18n::gettext_noop("The sticker manifest contains an invalid number").to_owned())
 }
 
 fn read_tag(bytes: &[u8], pos: &mut usize) -> Result<(u64, u64), String> {
@@ -141,7 +145,7 @@ fn read_chunk<'a>(bytes: &'a [u8], pos: &mut usize) -> Result<&'a [u8], String> 
     let end = pos
         .checked_add(length)
         .filter(|end| *end <= bytes.len())
-        .ok_or("The sticker manifest is incomplete".to_owned())?;
+        .ok_or(crate::i18n::gettext_noop("The sticker manifest is incomplete").to_owned())?;
     let chunk = &bytes[*pos..end];
     *pos = end;
     Ok(chunk)
@@ -157,10 +161,15 @@ fn skip_field(bytes: &[u8], pos: &mut usize, wire: u64) -> Result<(), String> {
             read_chunk(bytes, pos)?;
         }
         5 => *pos += 4,
-        _ => return Err("The sticker manifest contains an unknown field".to_owned()),
+        _ => {
+            return Err(crate::i18n::gettext_noop(
+                "The sticker manifest contains an unknown field",
+            )
+            .to_owned());
+        }
     }
     if *pos > bytes.len() {
-        return Err("The sticker manifest is incomplete".to_owned());
+        return Err(crate::i18n::gettext_noop("The sticker manifest is incomplete").to_owned());
     }
     Ok(())
 }
@@ -204,8 +213,10 @@ Lrsybb0z5gg8w7ZblEuB9zOW9M3l60DXuJO6l7g+deV6P96rv2unHS8UlvWiVWDy\n\
 /// HTTP client that trusts only Signal's sticker CDN authority.
 fn signal_agent() -> Result<ureq::Agent, String> {
     use ureq::tls::{Certificate, RootCerts, TlsConfig};
-    let ca = Certificate::from_pem(SIGNAL_CA.as_bytes())
-        .map_err(|error| format!("Could not read the Signal certificate: {error}"))?;
+    let ca = Certificate::from_pem(SIGNAL_CA.as_bytes()).map_err(|error| {
+        crate::i18n::gettext_noop("Could not read the Signal certificate: {error}")
+            .replace("{error}", &error.to_string())
+    })?;
     let tls = TlsConfig::builder()
         .root_certs(RootCerts::new_with_certs(&[ca]))
         .build();
@@ -223,7 +234,10 @@ fn fetch(agent: &ureq::Agent, url: &str) -> Result<Vec<u8>, String> {
         .map_err(|error| format!("signal.art request failed: {error}"))?
         .body_mut()
         .read_to_vec()
-        .map_err(|error| format!("Could not read the signal.art response: {error}"))
+        .map_err(|error| {
+            crate::i18n::gettext_noop("Could not read the signal.art response: {error}")
+                .replace("{error}", &error.to_string())
+        })
 }
 
 /// Downloads a signal.art pack into a directory named after its title.
@@ -239,7 +253,7 @@ pub fn import_signal_pack(url: &str, packs: &Path) -> Result<String, String> {
     )?;
     let (title, stickers) = parse_manifest(&manifest)?;
     if stickers.is_empty() {
-        return Err("This pack contains no stickers".to_owned());
+        return Err(crate::i18n::gettext_noop("This pack contains no stickers").to_owned());
     }
     let ids: Vec<u64> = stickers.iter().map(|sticker| sticker.id).collect();
     // Download several of the pack's files concurrently.
@@ -283,10 +297,14 @@ pub fn import_signal_pack(url: &str, packs: &Path) -> Result<String, String> {
 
 /// Imports a .wastickers or zip archive. Uses `title.txt` or the filename as title.
 pub fn import_archive(path: &Path, packs: &Path) -> Result<String, String> {
-    let file =
-        std::fs::File::open(path).map_err(|error| format!("Could not open the file: {error}"))?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|error| format!("This file is not a sticker archive: {error}"))?;
+    let file = std::fs::File::open(path).map_err(|error| {
+        crate::i18n::gettext_noop("Could not open the file: {error}")
+            .replace("{error}", &error.to_string())
+    })?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|error| {
+        crate::i18n::gettext_noop("This file is not a sticker archive: {error}")
+            .replace("{error}", &error.to_string())
+    })?;
     let mut title: Option<String> = None;
     let mut pictures: Vec<(String, Vec<u8>)> = Vec::new();
     for index in 0..archive.len() {
@@ -339,8 +357,10 @@ pub fn extract_whatsapp_pack(
     name: &str,
     dir: &Path,
 ) -> Result<Vec<PathBuf>, String> {
-    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip))
-        .map_err(|error| format!("This is not a sticker pack: {error}"))?;
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).map_err(|error| {
+        crate::i18n::gettext_noop("This is not a sticker pack: {error}")
+            .replace("{error}", &error.to_string())
+    })?;
     let mut files: Vec<(String, Vec<u8>)> = Vec::new();
     for index in 0..archive.len() {
         let Ok(mut entry) = archive.by_index(index) else {
@@ -366,7 +386,9 @@ pub fn extract_whatsapp_pack(
     };
     files.sort_by_key(|(file, _)| rank(file));
     if files.is_empty() {
-        return Err("No stickers could be read from this pack".to_owned());
+        return Err(
+            crate::i18n::gettext_noop("No stickers could be read from this pack").to_owned(),
+        );
     }
     std::fs::create_dir_all(dir).map_err(|error| error.to_string())?;
     let mut written = Vec::new();
@@ -446,12 +468,16 @@ pub fn pack_art(first: &[u8]) -> Option<(Vec<u8>, Vec<u8>)> {
 /// Writes pack images to a new directory named after the title.
 fn write_pack(packs: &Path, title: &str, files: Vec<Vec<u8>>) -> Result<String, String> {
     if files.is_empty() {
-        return Err("No stickers could be read from this pack".to_owned());
+        return Err(
+            crate::i18n::gettext_noop("No stickers could be read from this pack").to_owned(),
+        );
     }
     let dir = unique_pack_dir(packs, title)?;
     for (index, bytes) in files.iter().enumerate() {
-        std::fs::write(dir.join(format!("{index:03}.webp")), bytes)
-            .map_err(|error| format!("Could not write the sticker pack: {error}"))?;
+        std::fs::write(dir.join(format!("{index:03}.webp")), bytes).map_err(|error| {
+            crate::i18n::gettext_noop("Could not write the sticker pack: {error}")
+                .replace("{error}", &error.to_string())
+        })?;
     }
     Ok(dir
         .file_name()
@@ -568,12 +594,14 @@ pub(super) fn unique_pack_dir(root: &Path, title: &str) -> Result<PathBuf, Strin
         };
         let dir = root.join(&name);
         if !dir.exists() {
-            std::fs::create_dir_all(&dir)
-                .map_err(|error| format!("Could not create the pack folder: {error}"))?;
+            std::fs::create_dir_all(&dir).map_err(|error| {
+                crate::i18n::gettext_noop("Could not create the pack folder: {error}")
+                    .replace("{error}", &error.to_string())
+            })?;
             return Ok(dir);
         }
     }
-    Err("Too many sticker packs have this name".to_owned())
+    Err(crate::i18n::gettext_noop("Too many sticker packs have this name").to_owned())
 }
 
 #[cfg(test)]

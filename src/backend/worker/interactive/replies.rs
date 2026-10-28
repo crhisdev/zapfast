@@ -269,7 +269,9 @@ impl Worker {
             return;
         }
         let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
-            self.emit(Event::Error("Not connected to WhatsApp".into()));
+            self.emit(Event::Error(
+                crate::i18n::gettext_noop("Not connected to WhatsApp").into(),
+            ));
             return;
         };
         let prepared = (|| {
@@ -280,7 +282,7 @@ impl Worker {
             Some((row, reply))
         })();
         let Some((source, message)) = prepared else {
-            self.emit(Event::Error("This option is unavailable in ZapFast. Open the message in WhatsApp Web or on your phone.".into()));
+            self.emit(Event::Error(crate::i18n::gettext_noop("This option is unavailable in ZapFast. Open the message in WhatsApp Web or on your phone.").into()));
             return;
         };
         self.send_prepared(client, jid, chat, source_id, source, message);

@@ -1061,18 +1061,22 @@ impl PollDraft {
             .map(|option| option.trim().to_owned())
             .collect();
         if question.is_empty() || question.chars().count() > 255 {
-            return Err("Enter a question of up to 255 characters.");
+            return Err(crate::i18n::gettext_noop(
+                "Enter a question of up to 255 characters.",
+            ));
         }
         if !(2..=12).contains(&options.len())
             || options
                 .iter()
                 .any(|option| option.is_empty() || option.chars().count() > 100)
         {
-            return Err("Add 2–12 answers, each with 1–100 characters.");
+            return Err(crate::i18n::gettext_noop(
+                "Add 2–12 answers, each with 1–100 characters.",
+            ));
         }
         let mut unique = std::collections::HashSet::new();
         if options.iter().any(|option| !unique.insert(option)) {
-            return Err("Each answer must be different.");
+            return Err(crate::i18n::gettext_noop("Each answer must be different."));
         }
         Ok(Self {
             question,
@@ -2322,8 +2326,10 @@ pub enum Dialog {
         message: String,
         button: usize,
     },
-    /// Previews a group invite link before joining.
+    /// Previews a group invite link, or a channel link, before joining.
     JoinGroup,
+    /// Takes a channel link to follow, then previews it as `JoinGroup`.
+    FollowChannel,
     /// Confirms setting aside an archive whose key is gone.
     ConfirmStartOver,
     /// The stickers of a pack shared in a chat, with a button to add it.
@@ -2416,10 +2422,12 @@ impl MessageReceipts {
     }
 }
 
-/// A group invite link being previewed or joined.
+/// A group invite link, or a channel link, being previewed or joined.
 #[derive(Clone, Debug, PartialEq)]
 pub struct GroupInvite {
     pub code: String,
+    /// A WhatsApp channel link: joining follows the channel.
+    pub channel: bool,
     pub state: InviteState,
 }
 
@@ -2437,6 +2445,7 @@ pub struct InviteInfo {
     pub id: ChatId,
     pub subject: String,
     pub description: Option<String>,
+    /// A channel's followers.
     pub members: usize,
     /// Admins approve new members before they join.
     pub approval: bool,

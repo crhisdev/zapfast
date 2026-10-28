@@ -117,6 +117,32 @@ fn is_valid_group_invite_code(code: &str) -> bool {
             .all(|character| character.is_ascii_alphanumeric())
 }
 
+/// The code of a WhatsApp channel link such as
+/// `https://whatsapp.com/channel/0029VaAbCd123`, which ZapFast follows itself.
+pub fn channel_invite_code(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    let lower = trimmed.to_ascii_lowercase();
+    let url = if lower.starts_with("whatsapp.com/") || lower.starts_with("www.whatsapp.com/") {
+        reqwest::Url::parse(&format!("https://{trimmed}")).ok()?
+    } else {
+        reqwest::Url::parse(trimmed).ok()?
+    };
+    if !matches!(url.scheme(), "http" | "https") {
+        return None;
+    }
+    let host = url.host_str()?;
+    if !host.eq_ignore_ascii_case("whatsapp.com") && !host.eq_ignore_ascii_case("www.whatsapp.com")
+    {
+        return None;
+    }
+    let mut segments = url.path_segments()?.filter(|segment| !segment.is_empty());
+    let (Some("channel"), Some(code), None) = (segments.next(), segments.next(), segments.next())
+    else {
+        return None;
+    };
+    is_valid_group_invite_code(code).then(|| code.to_owned())
+}
+
 /// A WhatsApp call link such as `https://call.whatsapp.com/voice/AbCd123`:
 /// its token, and whether it is a video call's (`/video/`) rather than a
 /// voice call's (`/voice/`, or `/audio/` as whatsapp-rust writes it).
@@ -221,6 +247,33 @@ mod tests {
             "whatsapp://call.whatsapp.com/voice/AbCdEf1234567890",
         ] {
             assert_eq!(call_link(link), None, "{link}");
+        }
+    }
+
+    #[test]
+    fn channel_links_are_recognised_and_nothing_else() {
+        let code = "0029VaAbCdEf1234567890Xy";
+        for link in [
+            format!("https://whatsapp.com/channel/{code}"),
+            format!("https://www.whatsapp.com/channel/{code}"),
+            format!("http://WWW.WhatsApp.com/channel/{code}/"),
+            format!("https://whatsapp.com/channel/{code}?utm=1"),
+            format!("whatsapp.com/channel/{code}"),
+            format!("  www.whatsapp.com/channel/{code}  "),
+        ] {
+            assert_eq!(channel_invite_code(&link).as_deref(), Some(code), "{link}");
+        }
+        for link in [
+            "https://whatsapp.com/channel/",
+            "https://whatsapp.com/channel/short",
+            "https://whatsapp.com/0029VaAbCdEf1234567890Xy",
+            "https://whatsapp.com/channel/0029VaAbCdEf1234567890Xy/extra",
+            "https://whatsapp.com.evil.example/channel/0029VaAbCdEf1234567890Xy",
+            "https://chat.whatsapp.com/channel/0029VaAbCdEf1234567890Xy",
+            "https://chat.whatsapp.com/0029VaAbCdEf1234567890Xy",
+            "ftp://whatsapp.com/channel/0029VaAbCdEf1234567890Xy",
+        ] {
+            assert_eq!(channel_invite_code(link), None, "{link}");
         }
     }
 

@@ -147,15 +147,15 @@ fn search_box(
 
 fn group_name(group: emojis::Group) -> &'static str {
     match group {
-        emojis::Group::SmileysAndEmotion => "Smileys & Emotion",
-        emojis::Group::PeopleAndBody => "People & Body",
-        emojis::Group::AnimalsAndNature => "Animals & Nature",
-        emojis::Group::FoodAndDrink => "Food & Drink",
-        emojis::Group::TravelAndPlaces => "Travel & Places",
-        emojis::Group::Activities => "Activities",
-        emojis::Group::Objects => "Objects",
-        emojis::Group::Symbols => "Symbols",
-        emojis::Group::Flags => "Flags",
+        emojis::Group::SmileysAndEmotion => crate::i18n::gettext_noop("Smileys & Emotion"),
+        emojis::Group::PeopleAndBody => crate::i18n::gettext_noop("People & Body"),
+        emojis::Group::AnimalsAndNature => crate::i18n::gettext_noop("Animals & Nature"),
+        emojis::Group::FoodAndDrink => crate::i18n::gettext_noop("Food & Drink"),
+        emojis::Group::TravelAndPlaces => crate::i18n::gettext_noop("Travel & Places"),
+        emojis::Group::Activities => crate::i18n::gettext_noop("Activities"),
+        emojis::Group::Objects => crate::i18n::gettext_noop("Objects"),
+        emojis::Group::Symbols => crate::i18n::gettext_noop("Symbols"),
+        emojis::Group::Flags => crate::i18n::gettext_noop("Flags"),
     }
 }
 
@@ -216,7 +216,7 @@ fn rows_for(
             .map(|emoji| emoji.as_str())
             .collect();
         if found.is_empty() {
-            rows.push(Row::Header("Nothing matches"));
+            rows.push(Row::Header(crate::i18n::gettext_noop("Nothing matches")));
         } else {
             chunk(&mut rows, found);
         }
@@ -261,28 +261,52 @@ fn place_picker(screen: Rect, anchor: Option<Rect>, width: f32, height: f32) -> 
 /// Category tabs under an emoji grid, WhatsApp-style. The first entry stands
 /// for the grid's own recent section, whatever it is called there.
 const CATEGORIES: &[(Option<emojis::Group>, &str, &str)] = &[
-    (None, "🕒", "Frequently Used"),
+    (None, "🕒", crate::i18n::gettext_noop("Frequently Used")),
     (
         Some(emojis::Group::SmileysAndEmotion),
         "😀",
-        "Smileys & Emotion",
+        crate::i18n::gettext_noop("Smileys & Emotion"),
     ),
-    (Some(emojis::Group::PeopleAndBody), "👋", "People & Body"),
+    (
+        Some(emojis::Group::PeopleAndBody),
+        "👋",
+        crate::i18n::gettext_noop("People & Body"),
+    ),
     (
         Some(emojis::Group::AnimalsAndNature),
         "🐻",
-        "Animals & Nature",
+        crate::i18n::gettext_noop("Animals & Nature"),
     ),
-    (Some(emojis::Group::FoodAndDrink), "🍔", "Food & Drink"),
+    (
+        Some(emojis::Group::FoodAndDrink),
+        "🍔",
+        crate::i18n::gettext_noop("Food & Drink"),
+    ),
     (
         Some(emojis::Group::TravelAndPlaces),
         "🚗",
-        "Travel & Places",
+        crate::i18n::gettext_noop("Travel & Places"),
     ),
-    (Some(emojis::Group::Activities), "⚽", "Activities"),
-    (Some(emojis::Group::Objects), "💡", "Objects"),
-    (Some(emojis::Group::Symbols), "🔣", "Symbols"),
-    (Some(emojis::Group::Flags), "🏁", "Flags"),
+    (
+        Some(emojis::Group::Activities),
+        "⚽",
+        crate::i18n::gettext_noop("Activities"),
+    ),
+    (
+        Some(emojis::Group::Objects),
+        "💡",
+        crate::i18n::gettext_noop("Objects"),
+    ),
+    (
+        Some(emojis::Group::Symbols),
+        "🔣",
+        crate::i18n::gettext_noop("Symbols"),
+    ),
+    (
+        Some(emojis::Group::Flags),
+        "🏁",
+        crate::i18n::gettext_noop("Flags"),
+    ),
 ];
 
 fn category_entries(
@@ -365,9 +389,14 @@ fn emoji_tab(app: &mut App, ui: &mut egui::Ui, palette: &Palette) {
         vec2(width, grid_height),
         Layout::top_down(Align::Min),
         |ui| {
-            if let Some(emoji) =
-                emoji_grid(app, ui, palette, "emoji-search", "emoji-grid", "Recent")
-            {
+            if let Some(emoji) = emoji_grid(
+                app,
+                ui,
+                palette,
+                "emoji-search",
+                "emoji-grid",
+                crate::i18n::gettext_noop("Recent"),
+            ) {
                 app.actions.push(Action::InsertEmoji(emoji));
             }
         },
@@ -378,7 +407,14 @@ fn emoji_tab(app: &mut App, ui: &mut egui::Ui, palette: &Palette) {
         .unwrap_or(&app.settings.recent_emoji)
         .iter()
         .any(|emoji| emojis::get(emoji).is_some());
-    category_tabs(app, ui, palette, "emoji-grid", "Recent", has_recent);
+    category_tabs(
+        app,
+        ui,
+        palette,
+        "emoji-grid",
+        crate::i18n::gettext_noop("Recent"),
+        has_recent,
+    );
 }
 
 fn reaction_picker(app: &mut App, ctx: &egui::Context) {
@@ -585,7 +621,7 @@ fn category_tabs(
                 }
                 if response
                     .on_hover_cursor(egui::CursorIcon::PointingHand)
-                    .on_hover_text(label)
+                    .on_hover_text(crate::i18n::gettext(app.locale, label))
                     .clicked()
                 {
                     app.picker_search.clear();
@@ -648,6 +684,7 @@ fn emoji_grid(
     let width = ui.available_width() - 6.0;
     let columns = ((width / CELL).floor() as usize).max(1);
     let cell = width / columns as f32;
+    let locale = app.locale;
     let frequent: Vec<_> = app
         .settings
         .reaction_emoji
@@ -749,7 +786,7 @@ fn emoji_grid(
                     ui.painter().text(
                         pos2(rect.left() + 4.0, rect.bottom() - 8.0),
                         Align2::LEFT_BOTTOM,
-                        *label,
+                        crate::i18n::gettext(locale, label),
                         theme::semibold(12.5),
                         palette.secondary,
                     );
