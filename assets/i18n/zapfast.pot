@@ -5170,3 +5170,15 @@ msgstr ""
 #: src/ui/keys.rs:937
 msgid "Close the window (ZapFast remains in the tray)"
 msgstr ""
+
+#: src/ui/flows.rs
+msgid "Form"
+msgstr ""
+
+#: src/ui/flows.rs
+msgid "Answer sent."
+msgstr ""
+
+#: src/ui/flows.rs
+msgid "Opening the form…"
+msgstr ""

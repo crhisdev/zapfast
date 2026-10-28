@@ -5404,6 +5404,18 @@ msgstr "Reproduzir vídeo"
 msgid "This status can't be shown here. See it on your phone."
 msgstr "Este status não pode ser exibido aqui. Veja no seu celular."
 
+#: src/ui/flows.rs
+msgid "Form"
+msgstr "Formulário"
+
+#: src/ui/flows.rs
+msgid "Answer sent."
+msgstr "Resposta enviada."
+
+#: src/ui/flows.rs
+msgid "Opening the form…"
+msgstr "Abrindo o formulário…"
+
 #~ msgid "Back to the chats"
 #~ msgstr "Voltar para as conversas"
 

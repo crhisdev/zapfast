@@ -1,0 +1,58 @@
+name: Windows build
+
+# A downloadable, unsigned Windows build of a branch: the zip and the MSI the
+# release job makes, kept as workflow artifacts instead of a GitHub release.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/project-thread-j86tu7"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  ZAPFAST_GIPHY_KEY: ${{ secrets.ZAPFAST_GIPHY_KEY || secrets.FASTSAPP_GIPHY_KEY }}
+
+jobs:
+  windows:
+    name: build (x86_64-pc-windows-msvc)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --locked --release
+      - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1.335.0
+        with:
+          ruby-version: '4.0'
+      - name: Package
+        shell: pwsh
+        run: |
+          gem install native-packages --version 0.11.0 --no-document
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add --global WixToolset.Util.wixext/5.0.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:Path += ";$env:USERPROFILE\.dotnet\tools"
+          $name = "zapfast-${{ github.sha }}-x86_64-pc-windows-msvc"
+          New-Item -ItemType Directory -Force "dist\$name" | Out-Null
+          Copy-Item target\release\zapfast.exe, README.md, LICENSE, THIRD-PARTY-NOTICES.md, `
+            packaging\zapfast-portable.txt "dist\$name"
+          7z a "dist\$name.zip" "dist\$name"
+          $payload = "dist\windows-input-x86_64-pc-windows-msvc"
+          New-Item -ItemType Directory -Force $payload | Out-Null
+          Copy-Item target\release\zapfast.exe, README.md, LICENSE, THIRD-PARTY-NOTICES.md, `
+            packaging\windows\zapfast-installer.txt $payload
+          # Above any 0.20.x release, so the MSI upgrades an installed copy
+          # instead of sitting beside one of the same version.
+          native-packages build --version 0.20.99 --target windows-amd64 `
+            --defer-recipes --output "$env:RUNNER_TEMP\windows-packages"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item "$env:RUNNER_TEMP\windows-packages\packages\windows-amd64\msi\*.msi" dist\
+      - uses: actions/upload-artifact@v7
+        with:
+          name: zapfast-windows-x64
+          path: |
+            dist/*.zip
+            dist/*.msi
+          if-no-files-found: error
