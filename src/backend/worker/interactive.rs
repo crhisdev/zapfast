@@ -14,6 +14,8 @@ struct Text {
     buttons: Vec<InteractiveButton>,
     /// Kept beside display rows while parsing, never serialized into the model.
     replies: Vec<Vec<wa::Message>>,
+    /// Flow button parameters by button index, kept like `replies`.
+    flows: std::collections::HashMap<usize, serde_json::Value>,
     omitted: bool,
 }
 
@@ -59,8 +61,17 @@ impl Text {
         let label = value
             .get("display_text")
             .and_then(|v| v.as_str())
-            .or_else(|| value.get("title").and_then(|v| v.as_str()));
+            .or_else(|| value.get("title").and_then(|v| v.as_str()))
+            .or_else(|| value.get("flow_cta").and_then(|v| v.as_str()))
+            .or_else(|| {
+                matches!(name, Some("payment_info" | "review_and_pay"))
+                    .then(|| replies::pix(&value).map(|(_, label)| label))
+                    .flatten()
+            });
         let (action, replies) = replies::native(name, label, &value);
+        if matches!(action, InteractiveAction::Flow) {
+            self.flows.insert(self.buttons.len(), value.clone());
+        }
         self.action(
             label,
             (name == Some("cta_url"))
@@ -162,7 +173,12 @@ impl Text {
         let carousel = children.is_some();
         let needs_phone = self.omitted
             || (!carousel && self.body.is_empty() && image.is_none())
-            || has_unrendered_content(base);
+            || has_unrendered_content(base)
+            // Flows (forms) and other unsupported actions only work on the phone.
+            || (!carousel
+                && self.buttons.iter().any(|button| {
+                    button.url.is_none() && matches!(button.action, InteractiveAction::Unavailable)
+                }));
         let card = is_request.then(|| {
             let body = if let Some(parent) = envelope(base).filter(|_| carousel) {
                 let mut parent = parent.clone();
@@ -195,7 +211,9 @@ impl Text {
                         for button in &mut text.buttons {
                             if matches!(
                                 button.action,
-                                InteractiveAction::Reply | InteractiveAction::Select(_)
+                                InteractiveAction::Reply
+                                    | InteractiveAction::Select(_)
+                                    | InteractiveAction::Flow
                             ) {
                                 button.action = InteractiveAction::Unavailable;
                             }
@@ -226,6 +244,20 @@ impl Text {
             card,
         }
     }
+}
+
+/// The flow behind a card's button, re-read from the archived message.
+pub(super) fn flow(base: &wa::Message, button: usize) -> Option<super::flows::Params> {
+    let Content::Interactive {
+        card: Some(card), ..
+    } = classify(base)?
+    else {
+        return None;
+    };
+    if !matches!(card.buttons.get(button)?.action, InteractiveAction::Flow) {
+        return None;
+    }
+    super::flows::params(parse(base)?.flows.get(&button)?)
 }
 
 pub(super) fn classify(base: &wa::Message) -> Option<Content> {

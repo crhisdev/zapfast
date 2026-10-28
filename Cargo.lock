@@ -1551,7 +1551,9 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453"
 dependencies = [
+ "getrandom 0.4.3",
  "hybrid-array",
+ "rand_core 0.10.1",
 ]
 
 [[package]]
@@ -8893,6 +8895,7 @@ name = "zapfast"
 version = "0.20.1"
 dependencies = [
  "aes 0.9.3",
+ "aes-gcm",
  "anyhow",
  "apple-native-keyring-store",
  "arboard",
@@ -8943,6 +8946,7 @@ dependencies = [
  "mime_guess2",
  "mp4",
  "nokhwa",
+ "num-bigint",
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",

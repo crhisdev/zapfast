@@ -6,6 +6,7 @@ pub mod calls;
 pub mod chats;
 pub mod conversation;
 pub mod dialogs;
+pub mod flows;
 pub(crate) mod focus;
 mod glass;
 pub mod image_editor;

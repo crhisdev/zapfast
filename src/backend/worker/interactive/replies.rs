@@ -95,6 +95,13 @@ pub(super) fn native(
             InteractiveAction::Copy(field("copy_code").unwrap().into()),
             Vec::new(),
         ),
+        Some("galaxy_message") if super::super::flows::params(value).is_some() => {
+            (InteractiveAction::Flow, Vec::new())
+        }
+        Some("payment_info" | "review_and_pay") => match pix(value) {
+            Some((code, _)) => (InteractiveAction::Copy(code.into()), Vec::new()),
+            None => (InteractiveAction::Unavailable, Vec::new()),
+        },
         Some("single_select") => {
             let mut options = Vec::new();
             let mut replies = Vec::new();
@@ -134,6 +141,21 @@ pub(super) fn native(
         }
         _ => (InteractiveAction::Unavailable, Vec::new()),
     }
+}
+
+/// The Pix copy-and-paste code of a payment button, else its Pix key, with
+/// the label WhatsApp shows when the sender gives none. Pix is Brazilian only,
+/// so the fallback label is Portuguese.
+pub(super) fn pix(value: &serde_json::Value) -> Option<(&str, &'static str)> {
+    let settings = value.get("payment_settings")?.as_array()?;
+    let find = |kind: &str, field: &str| {
+        settings
+            .iter()
+            .find_map(|setting| present(setting.get(kind)?.get(field)?.as_str()))
+    };
+    find("pix_dynamic_code", "code")
+        .map(|code| (code, "Copiar código Pix"))
+        .or_else(|| find("pix_static_code", "key").map(|key| (key, "Copiar chave Pix")))
 }
 
 pub(super) fn list(
@@ -204,13 +226,22 @@ fn prepare(
     button: usize,
     choice: Option<usize>,
 ) -> Option<wa::Message> {
+    quote(source, original, jid, response(original, button, choice)?)
+}
+
+/// Quotes the card a reply answers; `None` for a card that takes no replies.
+fn quote(
+    source: &Message,
+    original: &wa::Message,
+    jid: &super::super::Jid,
+    mut reply: wa::Message,
+) -> Option<wa::Message> {
     if source.from_me
         || source.edited
         || !matches!(source.content, Content::Interactive { card: Some(_), .. })
     {
         return None;
     }
-    let mut reply = response(original, button, choice)?;
     let sender = Worker::jid_of(&source.sender)?;
     let context = whatsapp_rust::wacore::proto_helpers::build_quote_context_with_info(
         source.id.clone(),
@@ -250,10 +281,46 @@ impl Worker {
             let reply = prepare(&row, &original, &jid, button, choice)?;
             Some((row, reply))
         })();
-        let Some((source, mut message)) = prepared else {
+        let Some((source, message)) = prepared else {
             self.emit(Event::Error(crate::i18n::gettext_noop("This option is unavailable in ZapFast. Open the message in WhatsApp Web or on your phone.").into()));
             return;
         };
+        self.send_prepared(client, jid, chat, source_id, source, message);
+    }
+
+    /// Sends `reply` quoting the archived card `source_id`, through the same
+    /// path as button replies. False when the card cannot take a reply.
+    pub(in super::super) fn send_interactive_reply(
+        &mut self,
+        chat: ChatId,
+        source_id: String,
+        reply: wa::Message,
+    ) -> bool {
+        let (Some(client), Some(jid)) = (self.client.clone(), Self::jid_of(&chat)) else {
+            return false;
+        };
+        let prepared = (|| {
+            let row = self.archive.message(&chat, &source_id).ok().flatten()?;
+            let raw = self.archive.raw(&chat, &source_id).ok().flatten()?;
+            let original = wa::Message::decode_from_slice(&raw).ok()?;
+            Some((quote(&row, &original, &jid, reply)?, row))
+        })();
+        let Some((message, source)) = prepared else {
+            return false;
+        };
+        self.send_prepared(client, jid, chat, source_id, source, message);
+        true
+    }
+
+    fn send_prepared(
+        &mut self,
+        client: std::sync::Arc<whatsapp_rust::Client>,
+        jid: super::super::Jid,
+        chat: ChatId,
+        source_id: String,
+        source: Message,
+        mut message: wa::Message,
+    ) {
         let expiration = self.apply_ephemeral(&chat, &mut message);
         let id = client.generate_message_id().into_string();
         let content = classify(&message).expect("validated interactive reply");
@@ -558,6 +625,51 @@ mod tests {
             ),
         ] {
             let request = native_request(name, json);
+            assert!(response(&request, 0, None).is_none());
+        }
+    }
+
+    #[test]
+    fn flow_buttons_open_the_flow_and_never_reply_directly() {
+        let json = r#"{"flow_message_version":"3","flow_token":"t","flow_id":"9","flow_cta":"Confirmar","flow_action":"data_exchange"}"#;
+        let request = native_request("galaxy_message", json);
+        let Some(Content::Interactive {
+            card: Some(card), ..
+        }) = classify(&request)
+        else {
+            panic!("card")
+        };
+        assert_eq!(card.buttons[0].label, "Confirmar");
+        assert_eq!(card.buttons[0].action, InteractiveAction::Flow);
+        assert!(!card.needs_phone);
+        assert!(response(&request, 0, None).is_none());
+        assert!(super::super::flow(&request, 0).is_some());
+        assert!(super::super::flow(&request, 1).is_none());
+        // Without a token the button only works on the phone.
+        let request = native_request(
+            "galaxy_message",
+            r#"{"flow_id":"9","flow_cta":"Confirmar"}"#,
+        );
+        assert!(super::super::flow(&request, 0).is_none());
+    }
+
+    #[test]
+    fn pix_payment_buttons_copy_the_code_or_key_without_replying() {
+        let dynamic = r#"{"payment_settings":[{"type":"pix_dynamic_code","pix_dynamic_code":{"code":"000201PIX","key":"k"}}]}"#;
+        let fixed = r#"{"payment_settings":[{"type":"pix_static_code","pix_static_code":{"key":"12345678000100","key_type":"CNPJ"}}]}"#;
+        for (name, json, code, label) in [
+            ("review_and_pay", dynamic, "000201PIX", "Copiar código Pix"),
+            ("payment_info", fixed, "12345678000100", "Copiar chave Pix"),
+        ] {
+            let request = native_request(name, json);
+            let Some(Content::Interactive {
+                card: Some(card), ..
+            }) = classify(&request)
+            else {
+                panic!("card")
+            };
+            assert_eq!(card.buttons[0].label, label);
+            assert_eq!(card.buttons[0].action, InteractiveAction::Copy(code.into()));
             assert!(response(&request, 0, None).is_none());
         }
     }

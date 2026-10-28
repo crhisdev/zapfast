@@ -180,6 +180,35 @@ pub enum Command {
         button: usize,
         choice: Option<usize>,
     },
+    OpenFlow {
+        chat: ChatId,
+        message: String,
+        button: usize,
+    },
+    FlowAction {
+        chat: ChatId,
+        message: String,
+        screen: String,
+        payload: serde_json::Value,
+        complete: bool,
+    },
+    CloseFlow {
+        chat: ChatId,
+        message: String,
+    },
+    /// Internal: a flow finished opening.
+    FlowOpened {
+        chat: ChatId,
+        message: String,
+        result:
+            Result<Box<(worker::FlowSession, serde_json::Value, worker::FlowStep)>, &'static str>,
+    },
+    /// Internal: the business answered a flow screen.
+    FlowStepped {
+        chat: ChatId,
+        message: String,
+        result: Result<worker::FlowStep, &'static str>,
+    },
     /// Forwards archived messages to each chat in `to_chats`, oldest first.
     /// The whole batch is refused when it names more chats than
     /// [`forward_limit`](crate::model::forward_limit) allows for these messages.
@@ -1061,12 +1090,30 @@ pub enum Command {
     },
 }
 
+/// What happened to an open WhatsApp Flow.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FlowUpdate {
+    /// The flow's screens, as its Flow JSON.
+    Opened(serde_json::Value),
+    Screen {
+        screen: String,
+        data: serde_json::Value,
+    },
+    Failed(&'static str),
+    Sent,
+}
+
 #[derive(Debug)]
 pub enum Event {
     InteractiveReplyState {
         chat: ChatId,
         message: String,
         pending: bool,
+    },
+    Flow {
+        chat: ChatId,
+        message: String,
+        update: FlowUpdate,
     },
     PollCreated {
         chat: ChatId,
