@@ -8090,12 +8090,14 @@ fn interactive_buttons(
     for (index, button) in card.buttons.iter().enumerate() {
         let sends = matches!(
             button.action,
-            InteractiveAction::Reply | InteractiveAction::Select(_)
+            InteractiveAction::Reply | InteractiveAction::Select(_) | InteractiveAction::Flow
         );
         let enabled = button.url.is_some()
             || match &button.action {
                 InteractiveAction::Copy(_) => true,
-                InteractiveAction::Reply | InteractiveAction::Select(_) => {
+                InteractiveAction::Reply
+                | InteractiveAction::Select(_)
+                | InteractiveAction::Flow => {
                     view.connected
                         && view.chat.can_send()
                         && !message.from_me
@@ -8122,6 +8124,7 @@ fn interactive_buttons(
                 InteractiveAction::Reply => None,
                 InteractiveAction::Select(_) => Some(Icon::ListChecks),
                 InteractiveAction::Copy(_) => Some(Icon::Copy),
+                InteractiveAction::Flow => Some(Icon::FileText),
                 InteractiveAction::Unavailable => Some(Icon::Smartphone),
             }
         };
@@ -8279,6 +8282,15 @@ fn interactive_buttons(
                             message: message.id.clone(),
                             button: index,
                         }));
+                    }
+                }
+                InteractiveAction::Flow => {
+                    if response.clicked() {
+                        actions.push(Action::OpenFlow {
+                            chat: message.chat.clone(),
+                            message: message.id.clone(),
+                            button: index,
+                        });
                     }
                 }
                 InteractiveAction::Unavailable => {}

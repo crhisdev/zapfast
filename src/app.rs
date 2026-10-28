@@ -3617,6 +3617,18 @@ impl App {
                     }
                 }
             }
+            Event::Flow {
+                chat,
+                message,
+                update,
+            } => {
+                if let Some(flow) = &mut self.flow
+                    && flow.chat == chat
+                    && flow.message == message
+                {
+                    flow.apply(update);
+                }
+            }
             Event::InteractiveReplyState {
                 chat,
                 message,
@@ -4488,6 +4500,7 @@ impl App {
                 let account = self.account().id.clone();
                 self.poll_voting.clear();
                 self.interactive_sending.clear();
+                self.flow = None;
                 self.poll_creating = false;
                 self.poll_draft = Default::default();
                 self.notifications.clear_account(&account);
@@ -6787,6 +6800,48 @@ impl App {
                 }
                 self.backend.send(Command::RefreshPoll { chat, message });
             }
+            Action::OpenFlow {
+                chat,
+                message,
+                button,
+            } => {
+                if self.link.is_connected() && self.chat(&chat).is_some_and(|chat| chat.can_send())
+                {
+                    self.flow = Some(crate::flows::FlowView::new(
+                        chat.clone(),
+                        message.clone(),
+                        button,
+                    ));
+                    self.dialog = Some(Dialog::Flow {
+                        chat: chat.clone(),
+                        message: message.clone(),
+                        button,
+                    });
+                    self.backend.send(Command::OpenFlow {
+                        chat,
+                        message,
+                        button,
+                    });
+                }
+            }
+            Action::FlowAction {
+                screen,
+                payload,
+                complete,
+            } => {
+                if let Some(flow) = &self.flow {
+                    self.backend.send(Command::FlowAction {
+                        chat: flow.chat.clone(),
+                        message: flow.message.clone(),
+                        screen,
+                        payload,
+                        complete,
+                    });
+                    if complete {
+                        self.follow_outgoing();
+                    }
+                }
+            }
             Action::ReplyInteractive {
                 chat,
                 message,
@@ -8207,6 +8262,12 @@ impl App {
                 self.dialog = Some(dialog);
             }
             Action::CloseDialog => {
+                if let Some(flow) = self.flow.take() {
+                    self.backend.send(Command::CloseFlow {
+                        chat: flow.chat,
+                        message: flow.message,
+                    });
+                }
                 self.cancel_contact_dialog_request();
                 self.clear_chat_lock_entry();
                 self.dialog = None;

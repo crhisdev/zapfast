@@ -55,6 +55,9 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 }
                 Dialog::CreatePoll(_) => 420.0,
                 Dialog::SendLocation(_) => 420.0,
+                Dialog::Flow { .. } => {
+                    440.0_f32.min((ui.ctx().content_rect().width() - 64.0).max(180.0))
+                }
                 Dialog::PollResults { .. }
                 | Dialog::InteractiveList { .. }
                 | Dialog::MessageInfo { .. } => {
@@ -76,6 +79,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     message,
                     button,
                 } => interactive_list(app, ui, &chat, &message, button),
+                Dialog::Flow { .. } => super::flows::show(app, ui),
                 Dialog::Labels => super::labels::manager(app, ui, &palette),
                 Dialog::Shortcuts => shortcuts(app, ui),
                 Dialog::About => about(app, ui),

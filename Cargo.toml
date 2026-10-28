@@ -27,6 +27,10 @@ ring = "0.17"
 # Decrypts Signal sticker packs. All four crates are already included through
 # wacore at these versions.
 aes = "0.9"
+# WhatsApp Flows data exchange: AES-GCM with a 16-byte IV, and the RSA-OAEP
+# key wrap done by hand on num-bigint. Both are already in the tree.
+aes-gcm = "0.11"
+num-bigint = "0.4"
 cbc = { version = "0.2", features = ["alloc", "block-padding"] }
 hkdf = "0.13"
 hmac = "0.13"
