@@ -1922,6 +1922,43 @@ pub(super) fn compact_list(app: &mut App, ui: &mut egui::Ui) {
         }
         focused
     });
+    // An avatar Tab reaches below the window's edge scrolls this list and the
+    // rail both, which can leave it cut off at the list's top: for a few
+    // frames after it gains focus, scroll the list back until it all shows.
+    // Only then, or a wheel could never move a focused avatar out of view.
+    let settling = egui::Id::new("chat-rail-focus-settling");
+    if let Some(focused) = &output.inner
+        && focused.gained_focus()
+    {
+        ui.ctx().data_mut(|data| data.insert_temp(settling, 3_u8));
+    }
+    let frames = ui
+        .ctx()
+        .data(|data| data.get_temp::<u8>(settling))
+        .unwrap_or(0);
+    if frames > 0 {
+        ui.ctx()
+            .data_mut(|data| data.insert_temp(settling, frames - 1));
+    }
+    if !copy
+        && frames > 0
+        && let Some(focused) = &output.inner
+    {
+        let viewport = output.inner_rect;
+        let shift = if focused.rect.top() < viewport.top() {
+            focused.rect.top() - viewport.top()
+        } else if focused.rect.bottom() > viewport.bottom() {
+            focused.rect.bottom() - viewport.bottom()
+        } else {
+            0.0
+        };
+        if shift != 0.0 && focused.rect.height() <= viewport.height() {
+            let mut state = output.state;
+            state.offset.y = (state.offset.y + shift).max(0.0);
+            state.store(ui.ctx(), output.id);
+            ui.ctx().request_repaint();
+        }
+    }
     // The rail itself scrolls in a short window. The inner scroll area has
     // consumed the avatar's focus target; reveal its viewport in the outer
     // one as well, so a focused avatar cannot stay clipped by the rail.

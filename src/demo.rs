@@ -1675,6 +1675,69 @@ fn photos_sample(app: &mut App) {
     app.scroll_to_bottom = true;
 }
 
+/// Statuses from three of the sample people and one of our own, the last
+/// person's already seen; `part` picks which one the viewer shows.
+fn status_sample(app: &mut App, part: &str) {
+    use crate::model::STATUS_CHAT;
+    let now = crate::util::now();
+    let dir = app.dirs.media_cache_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    let path = stock::save_photo(&dir, stock::DUSK);
+    let mut photo = media(
+        "image/jpeg",
+        stock::DUSK.bytes.len() as u64,
+        Some(stock::DUSK.width),
+        Some(stock::DUSK.height),
+    );
+    photo.path = Some(path);
+    let status = |sender: &str, id: &str, minutes: i64, content: Content| {
+        let mut status = message(STATUS_CHAT, id, sender == ME, now - minutes * 60, content);
+        status.sender = sender.to_owned();
+        status
+    };
+    let (ada, grace, linus) = (SAMPLES[0].id, SAMPLES[1].id, SAMPLES[2].id);
+    app.statuses = vec![
+        status(
+            linus,
+            "status-linus",
+            300,
+            Content::text("Back from the lake"),
+        ),
+        status(ME, "status-me", 200, Content::text("Busy until Friday")),
+        status(
+            ada,
+            "status-ada-1",
+            90,
+            Content::Image {
+                caption: Some("The launch, from the causeway".into()),
+                media: photo,
+                motion: None,
+            },
+        ),
+        status(
+            ada,
+            "status-ada-2",
+            40,
+            Content::text("Off to the coast for the weekend 🌊"),
+        ),
+        status(
+            grace,
+            "status-grace",
+            20,
+            Content::text("New paper out today!"),
+        ),
+    ];
+    app.statuses_loaded = true;
+    app.statuses_seen.insert("status-linus".into());
+    app.page = Page::Status;
+    app.open_chat = None;
+    app.status_open = match part {
+        "status-photo" => Some((ada.into(), "status-ada-1".into())),
+        "status-text" => Some((ada.into(), "status-ada-2".into())),
+        _ => None,
+    };
+}
+
 /// Runs of bubbles from both sides, for the Messages style's balloons and
 /// their tails (`bubbles,messages` and `bubbles,messages-light`): single
 /// lines, a wrapped paragraph, a message of emoji alone, a quoted reply on
@@ -2653,6 +2716,9 @@ pub fn apply_flags(app: &mut App, page: Option<&str>) {
             // chat that was open, that chat beside the history; with a row
             // picked, that row's chat at the call.
             // The Missed chip picked, and with no missed call to show.
+            // The Status tab: the people who posted, with nothing picked, a
+            // picture picked, and a text status picked.
+            "status" | "status-photo" | "status-text" => status_sample(app, part),
             "calls" | "calls-chat" | "calls-info" | "new-call" | "calls-missed"
             | "calls-missed-none" | "calls-link" => {
                 app.page = Page::Calls;
@@ -7655,6 +7721,10 @@ mod tests {
             "react-picker-empty",
             "react-custom",
             "react-other",
+            "status",
+            "status-photo",
+            "status-text",
+            "status-text,light",
             "calls",
             "calls-chat",
             "calls-info",
@@ -19188,6 +19258,7 @@ mod tests {
                 Stop::Chats,
                 Stop::Calls,
                 Stop::Channels,
+                Stop::Status,
                 Stop::Starred,
                 Stop::Archived,
                 Stop::Locked,
@@ -19305,6 +19376,7 @@ mod tests {
                         Stop::Chats,
                         Stop::Calls,
                         Stop::Channels,
+                        Stop::Status,
                         Stop::Starred,
                         Stop::Archived,
                         Stop::Locked,
@@ -21782,6 +21854,7 @@ mod rail_tests {
                     let mut expected = vec![
                         Stop::Chats,
                         Stop::Calls,
+                        Stop::Status,
                         Stop::Starred,
                         Stop::Archived,
                         Stop::Locked,

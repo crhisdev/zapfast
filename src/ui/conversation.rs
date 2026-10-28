@@ -7036,13 +7036,8 @@ fn content(
             let mut detail = Vec::new();
             if let Some(pages) = pages {
                 detail.push(
-                    crate::i18n::ngettext(
-                        view.locale,
-                        "{pages} page",
-                        "{pages} pages",
-                        (*pages).try_into().unwrap_or(u32::MAX),
-                    )
-                    .replace("{pages}", &pages.to_string()),
+                    crate::i18n::ngettext(view.locale, "{pages} page", "{pages} pages", *pages)
+                        .replace("{pages}", &pages.to_string()),
                 );
             }
             detail.push(crate::util::bytes(media.size));

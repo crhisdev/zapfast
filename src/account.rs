@@ -128,6 +128,13 @@ pub struct Account {
     pub calls_search: String,
     /// What the new-call list's search field holds.
     pub new_call_search: String,
+    /// The statuses still up, oldest first, once read.
+    pub statuses: Vec<Message>,
+    pub statuses_loaded: bool,
+    /// The status on screen on the Status page: its author and its id.
+    pub status_open: Option<(String, String)>,
+    /// The statuses seen on the Status page since ZapFast started.
+    pub statuses_seen: HashSet<String>,
 }
 
 impl Account {
@@ -225,6 +232,10 @@ impl Account {
             pin_limit: crate::backend::PINNED_CHATS,
             call_log: Vec::new(),
             call_log_loaded: false,
+            statuses: Vec::new(),
+            statuses_loaded: false,
+            status_open: None,
+            statuses_seen: HashSet::new(),
             picked_call: None,
             new_call: false,
             calls_search: String::new(),

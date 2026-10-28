@@ -1,5 +1,5 @@
 //! The navigation rail on the left of the chat list, as WhatsApp's desktop
-//! clients have it: Chats, Calls and Channels at the top; Starred, Archived and Locked
+//! clients have it: Chats, Calls, Channels and Status at the top; Starred, Archived and Locked
 //! chats (while there are any), Settings and our own avatar (the account
 //! switcher) at the bottom. While the chat list is hidden, the chats'
 //! avatars fill the rail between the two, so every chat is still one click
@@ -66,6 +66,7 @@ pub enum Destination {
     Calls,
     /// The followed channels, in the chat list's place.
     Channels,
+    Status,
     Starred,
     Archived,
     Locked,
@@ -82,6 +83,7 @@ impl Destination {
             }
             Self::Calls => app.page == Page::Calls,
             Self::Channels => app.channels_tab(),
+            Self::Status => app.page == Page::Status,
             Self::Starred => app.page == Page::Chats && app.show_starred,
             Self::Archived => chats && app.show_archived,
             Self::Locked => chats && app.locked_folder_open(),
@@ -134,6 +136,11 @@ impl Destination {
             Self::Calls => {
                 if app.page != Page::Calls {
                     actions.push(Action::Open(Page::Calls));
+                }
+            }
+            Self::Status => {
+                if app.page != Page::Status {
+                    actions.push(Action::Open(Page::Status));
                 }
             }
             Self::Starred => {
@@ -202,7 +209,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, hidden: bool) {
         .filter(|destination| destination.offered(app))
         .collect();
         let foot = bottom.len() as f32 * (PLATE + GAP) + GAP + AVATAR + GAP;
-        let minimum = 3.0 * CELL
+        let minimum = 4.0 * CELL
             + foot
             + if hidden {
                 CELL + GAP + MIN_AVATARS
@@ -223,11 +230,12 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, hidden: bool) {
                     Destination::Chats,
                     Destination::Calls,
                     Destination::Channels,
+                    Destination::Status,
                 ] {
                     destination_button(app, ui, &palette, destination, CELL);
                 }
                 if hidden {
-                    // A cell of its own under Calls: nothing above it moves
+                    // A cell of its own under Status: nothing above it moves
                     // when the list comes and goes.
                     show_list_button(app, ui, &palette);
                     ui.add_space(GAP / 2.0);
@@ -334,6 +342,18 @@ fn destination_button(
                     "{} ({})",
                     gettext(app.locale, "Channels"),
                     super::keys::label("Ctrl+Shift+3")
+                ),
+            )
+        }
+        Destination::Status => {
+            badge = app.unseen_status_authors() as u32;
+            (
+                Icon::Status,
+                Stop::Status,
+                format!(
+                    "{} ({})",
+                    gettext(app.locale, "Status"),
+                    super::keys::label("Ctrl+Shift+4")
                 ),
             )
         }

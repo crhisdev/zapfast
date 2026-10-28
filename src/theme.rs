@@ -1028,6 +1028,7 @@ fastframe_icons::icons! {
         Smile => "smile",
         SquarePen => lucide "square-pen",
         Star => "star",
+        Status => "status",
         StarFill => "star-fill",
         StarOff => "star-off",
         Sticker => "sticker",

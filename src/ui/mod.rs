@@ -24,6 +24,7 @@ pub mod picker;
 pub mod polls;
 pub mod rail;
 pub mod settings;
+pub mod status;
 pub mod update;
 pub mod widgets;
 
@@ -131,7 +132,7 @@ fn list_pane_only(app: &App) -> bool {
     match app.page {
         Page::Chats => app.current_chat().is_none(),
         Page::Calls => app.current_chat().is_none() || !app.call_picked(),
-        Page::Settings | Page::Wallpaper => false,
+        Page::Settings | Page::Wallpaper | Page::Status => false,
     }
 }
 
@@ -162,8 +163,10 @@ fn main_view(app: &mut App, ui: &mut egui::Ui, list_only: bool) {
     let crowded = app.info_visible()
         && ui.available_width() - list_width < pane::INFO_MIN + pane::INFO_CONVERSATION_MIN;
     if !narrow(ui.ctx()) && !crowded {
-        rail::show(app, ui, !full_list);
-        if full_list {
+        // The Status page lists its own people where the chats would be.
+        let status = app.page == Page::Status;
+        rail::show(app, ui, !full_list && !status);
+        if full_list && !status {
             chats::show(app, ui);
         }
     }
@@ -185,6 +188,7 @@ fn main_view(app: &mut App, ui: &mut egui::Ui, list_only: bool) {
                 // The open chat stays beside the call history.
                 Page::Calls if app.current_chat().is_some() => conversation::show(app, ui),
                 Page::Calls => calls::show(app, ui),
+                Page::Status => status::show(app, ui),
                 Page::Wallpaper => settings::wallpaper_show(app, ui),
             }
         });

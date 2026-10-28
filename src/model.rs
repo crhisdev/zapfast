@@ -904,6 +904,13 @@ pub const CALL_ENTRY_PREFIX: &str = "zapfast-call-";
 /// the Calls page alone, never in the chat list.
 pub const CALL_LINK_CHAT: &str = "zapfast-call-link";
 
+/// The chat id WhatsApp sends statuses under. Statuses are filed under it,
+/// with their author as the sender, and show on the Status page alone.
+pub const STATUS_CHAT: &str = "status@broadcast";
+
+/// How long, in seconds, a status stays up after it is posted.
+pub const STATUS_LIFETIME: i64 = 24 * 60 * 60;
+
 /// How far apart, in seconds, two entries for one call may be: the phone's
 /// call-log message and the call's record are stamped by different clocks.
 pub const CALL_ENTRY_WINDOW: i64 = 120;
@@ -1843,6 +1850,8 @@ pub enum Page {
     Chats,
     /// Every call of the account, newest first.
     Calls,
+    /// The statuses posted in the last day, by person.
+    Status,
     Settings,
     Wallpaper,
 }
@@ -2510,6 +2519,9 @@ pub enum Action {
     },
     /// Opens the new-call list over the Calls list, or closes it.
     ShowNewCall(bool),
+    /// Shows a status on the Status page (its author and its id), marking
+    /// it seen, or closes the one shown.
+    ViewStatus(Option<(String, String)>),
     /// Answers the ringing incoming call.
     AnswerCall,
     /// Declines the ringing incoming call.

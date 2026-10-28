@@ -581,6 +581,26 @@ window the list takes the whole window beside the rail, and a picked call's
 chat opens over both, with a Back button. Group calls show up in the history
 under their group, named by who called; they are started on the phone.
 
+## Status
+
+**Status** in the rail (`Ctrl+Shift+4`, Command on macOS) opens the statuses
+your contacts posted in the last 24 hours. The list puts your own first, then
+**Recent updates** (people with something you have not seen, a green ring
+around their picture, and a count on the rail's button) and **Viewed
+updates**, each newest first. Click a person to see their statuses one at a
+time, from the first you have not seen: a bar per status runs along the top,
+text and pictures move on after a few seconds, and videos wait for you. The
+arrows at the sides, or the Left and Right arrow keys, step back and forth,
+and after a person's last status the viewer moves to the next person with
+something new. Click a picture to open it in the viewer, or a video to play
+it. Statuses go when their day is up or their author deletes them.
+
+ZapFast shows statuses only: it does not post them, reply to them, or tell
+their authors you saw them, and which ones you have seen is forgotten when
+ZapFast quits. Statuses that are neither text, a picture, nor a video say to
+open them on your phone. Escape closes the status on screen, and pressed again
+goes back to the chats, as **Chats** in the rail does.
+
 ## Copying
 
 Select and copy any message text. You can begin dragging in the padding around
@@ -818,15 +838,16 @@ wearing it, channels included. A label is one more chip: picking it lets go of
 the other chips, it does not narrow search or the archive. Click the active
 label chip again, or **All**, to see every chat.
 
-A thin rail runs down the left of the chat list: **Chats** and **Calls**
-(`Ctrl+Shift+1` and `Ctrl+Shift+2`, Command on macOS) at the top;
+A thin rail runs down the left of the chat list: **Chats**, **Calls** and
+**Status** (`Ctrl+Shift+1`, `Ctrl+Shift+2` and `Ctrl+Shift+4`, Command on
+macOS) at the top;
 **Starred**, **Archived** and **Locked** (while you have archived or locked
 chats), **Settings**, and your own picture (the account switcher) at the
 bottom. The one on screen is lit. The chat list's header keeps its title, **New
 chat**, and the button beside it (`Ctrl+B`), which hides the list: the chats'
 avatars then fill the rail between its top and bottom buttons. Unread chats
 show their badge, hovering names a chat, clicking opens it, and `Ctrl+B` or
-the button under **Calls** brings the full list back.
+the button under **Status** brings the full list back.
 In a short window, scroll the rail to reach its lower buttons. Tab and
 Shift+Tab bring the focused button into view, too.
 

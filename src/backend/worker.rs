@@ -56,6 +56,7 @@ mod poll_history;
 mod polls;
 mod prefetch;
 mod star_recovery;
+mod statuses;
 mod sticker_pace;
 mod stickers;
 
@@ -2265,6 +2266,7 @@ impl Worker {
         }
         self.emit(Event::Contacts(self.contacts.values().cloned().collect()));
         self.emit_chats();
+        self.emit_statuses();
     }
 
     /// Measures the media cache off the runtime, emptying it first when
@@ -4451,6 +4453,7 @@ impl Worker {
     fn ingest(&mut self, message: &Arc<wa::Message>, info: &MessageInfo) {
         self.learn_source(&info.source);
         if info.source.chat.is_status_broadcast() {
+            self.ingest_status(message, info);
             return;
         }
         let chat = self.canonical(&info.source.chat);
@@ -5603,6 +5606,10 @@ impl Worker {
         }
         for mut chat in parsed.chats {
             let id = self.canonical_str(&chat.id);
+            if id == crate::model::STATUS_CHAT {
+                self.file_history_statuses(chat.messages);
+                continue;
+            }
             if id.ends_with("@broadcast") {
                 continue;
             }
@@ -6527,6 +6534,7 @@ impl Worker {
                 self.emit_call_devices().await;
             }
             Command::LoadCallLog => self.emit_call_log(),
+            Command::LoadStatuses => self.emit_statuses(),
             Command::RefreshPoll { chat, message } => self.refresh_poll(chat, message),
             Command::PollHistoryFailed {
                 chat,

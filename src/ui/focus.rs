@@ -32,6 +32,7 @@ pub enum Stop {
     Chats,
     Calls,
     Channels,
+    Status,
     Starred,
     Archived,
     Locked,
