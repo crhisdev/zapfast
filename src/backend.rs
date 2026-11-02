@@ -1240,6 +1240,8 @@ pub enum Event {
         chat: ChatId,
         sender: String,
         composing: bool,
+        /// Recording a voice note rather than typing.
+        recording: bool,
     },
     Presence {
         id: String,

@@ -1614,11 +1614,14 @@ fn row(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> egui::Response {
             palette.dim
         };
         let preview = if !typing.is_empty() {
-            let who = if chat.is_group() {
-                crate::i18n::gettext(app.locale, "{} is typing…")
-                    .replace("{}", typing[0].1.trim_start_matches('~'))
-            } else {
-                crate::i18n::gettext(app.locale, "typing…").into_owned()
+            let (_, name, recording) = &typing[0];
+            let who = match (chat.is_group(), recording) {
+                (true, false) => crate::i18n::gettext(app.locale, "{} is typing…")
+                    .replace("{}", name.trim_start_matches('~')),
+                (true, true) => crate::i18n::gettext(app.locale, "{} is recording audio…")
+                    .replace("{}", name.trim_start_matches('~')),
+                (false, false) => crate::i18n::gettext(app.locale, "typing…").into_owned(),
+                (false, true) => crate::i18n::gettext(app.locale, "recording audio…").into_owned(),
             };
             widgets::line(
                 ui,
