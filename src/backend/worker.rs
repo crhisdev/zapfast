@@ -5540,7 +5540,13 @@ impl Worker {
                         );
                     }
                 }
+                let batch = self.archive.begin_batch();
                 let filed = self.apply_history(parsed, !on_demand);
+                if batch.is_ok()
+                    && let Err(error) = self.archive.end_batch()
+                {
+                    log::warn!("could not commit a history chunk: {error}");
+                }
                 if on_demand {
                     self.answer_older(filed, session.as_deref());
                 }

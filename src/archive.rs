@@ -415,7 +415,55 @@ pub const GALLERY_PAGE: usize = 200;
 const UNARCHIVE_CHATS: &str = "unarchive_chats";
 const UNARCHIVE_CHATS_AT: &str = "unarchive_chats_at";
 
+/// A transaction that also works inside an open one, as a savepoint, so the
+/// writes it groups can sit inside `Archive::begin_batch`.
+pub(crate) struct Tx<'a> {
+    connection: &'a Connection,
+    open: bool,
+}
+
+pub(crate) fn begin(connection: &Connection) -> Result<Tx<'_>> {
+    connection.execute_batch("SAVEPOINT tx")?;
+    Ok(Tx {
+        connection,
+        open: true,
+    })
+}
+
+impl Tx<'_> {
+    pub fn commit(mut self) -> Result<()> {
+        self.open = false;
+        self.connection.execute_batch("RELEASE tx")
+    }
+}
+
+impl Drop for Tx<'_> {
+    fn drop(&mut self) {
+        if self.open {
+            let _ = self.connection.execute_batch("ROLLBACK TO tx; RELEASE tx");
+        }
+    }
+}
+
+impl std::ops::Deref for Tx<'_> {
+    type Target = Connection;
+    fn deref(&self) -> &Connection {
+        self.connection
+    }
+}
+
 impl Archive {
+    /// Groups the writes until `end_batch` into one commit. Each write on its
+    /// own is a commit of its own, which made filing a history chunk of
+    /// thousands of messages slow on the encrypted archive.
+    pub fn begin_batch(&self) -> Result<()> {
+        self.connection.execute_batch("SAVEPOINT batch")
+    }
+
+    pub fn end_batch(&self) -> Result<()> {
+        self.connection.execute_batch("RELEASE batch")
+    }
+
     /// Unlocks the on-disk archive with its OS keyring key, migrating plaintext
     /// archives before their first encrypted use. Never falls back to plaintext.
     pub fn open(path: &Path) -> anyhow::Result<Self> {
@@ -1093,7 +1141,7 @@ impl Archive {
     /// Stores a privacy id mapping and reconciles history already filed under
     /// the privacy id with the canonical phone-number chat.
     pub fn put_lid(&self, lid: &str, pn: &str) -> Result<bool> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = begin(&self.connection)?;
         let lid_chat = format!("{lid}@lid");
         let phone_chat = format!("{pn}@s.whatsapp.net");
         Self::merge_group_recipient(&transaction, &lid_chat, &phone_chat)?;
@@ -1750,7 +1798,7 @@ impl Archive {
 
     /// Commits removal, barriers, and pending cleanup for every known identity.
     pub fn delete_message_aliases(&self, chats: &[String], id: &str) -> Result<bool> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = begin(&self.connection)?;
         let mut deleted = 0;
         for chat in chats {
             transaction.execute(
@@ -1797,7 +1845,7 @@ impl Archive {
 
     /// Saves authoritative acceptance separately from fallible physical cleanup.
     pub fn confirm_message_removal(&self, account: &str, chats: &[String], id: &str) -> Result<()> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = begin(&self.connection)?;
         // The caller supplies the current protocol account, including before its
         // Connected event. Bind replay checks to that same persisted identity.
         transaction.execute(
@@ -1878,7 +1926,7 @@ impl Archive {
     /// Atomically removes only the range the linked device knew about, keeping
     /// newer messages and a durable barrier against replay after restart.
     pub fn remove_chat_through(&self, chat: &str, through: i64, delete: bool) -> Result<Removed> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = begin(&self.connection)?;
         let through = self
             .removal_point(chat)?
             .map_or(through, |old| old.max(through));
@@ -2304,7 +2352,7 @@ impl Archive {
     /// The chat's activity follows: an activity time this message set moves
     /// to the chat's newest message, and later activity stays.
     pub fn restamp_sent(&self, chat: &str, id: &str, timestamp: i64) -> Result<bool> {
-        let transaction = self.connection.unchecked_transaction()?;
+        let transaction = begin(&self.connection)?;
         let Some(old) = transaction
             .query_row(
                 "SELECT timestamp FROM messages
@@ -2575,6 +2623,33 @@ impl Archive {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #[test]
+    fn transactions_nest_inside_a_batch() {
+        let archive = super::Archive::in_memory().unwrap();
+        let connection = &archive.connection;
+        connection
+            .execute_batch("CREATE TABLE t (n INTEGER)")
+            .unwrap();
+        archive.begin_batch().unwrap();
+        let kept = super::begin(connection).unwrap();
+        kept.execute("INSERT INTO t VALUES (1)", []).unwrap();
+        kept.commit().unwrap();
+        // Dropped without commit: only this one's write is undone.
+        let undone = super::begin(connection).unwrap();
+        undone.execute("INSERT INTO t VALUES (2)", []).unwrap();
+        drop(undone);
+        archive.end_batch().unwrap();
+        assert!(connection.is_autocommit());
+        let rows: Vec<i64> = connection
+            .prepare("SELECT n FROM t")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(rows, [1]);
+    }
+
     pub(crate) fn set_derived_update_failure(archive: &super::Archive, fail: bool) {
         archive.connection.execute_batch(if fail {
             "CREATE TRIGGER reject_derived_update BEFORE UPDATE OF content ON messages BEGIN SELECT RAISE(ABORT, 'fixture failure'); END;"
