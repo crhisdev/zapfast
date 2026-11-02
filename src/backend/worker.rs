@@ -3751,11 +3751,11 @@ impl Worker {
                 self.emit(Event::Typing {
                     chat: self.canonical(&presence.source.chat),
                     sender: self.canonical(&presence.source.sender),
-                    // Recording a voice note also shows as typing, as before.
                     composing: matches!(
                         presence.state,
                         ChatActivity::Typing | ChatActivity::RecordingAudio
                     ),
+                    recording: presence.state == ChatActivity::RecordingAudio,
                 });
             }
             E::Presence(presence) => {

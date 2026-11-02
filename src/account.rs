@@ -55,7 +55,8 @@ pub struct Account {
     pub search: String,
     pub search_selected: Option<ChatId>,
     pub search_hits: Vec<Message>,
-    pub typing: HashMap<ChatId, Vec<(String, Instant)>>,
+    /// Who is typing in each chat, since when, and whether they are recording audio.
+    pub typing: HashMap<ChatId, Vec<(String, Instant, bool)>>,
     pub presence: HashMap<String, crate::app::Presence>,
     pub account_receipts_off: bool,
     pub(crate) avatars: HashMap<String, Option<PathBuf>>,

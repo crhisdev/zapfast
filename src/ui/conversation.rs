@@ -901,14 +901,19 @@ fn subtitle(app: &App, chat: &Chat) -> (String, Color32) {
     let typing = app.typing_in(&chat.id);
     if !typing.is_empty() {
         let text = if chat.is_group() {
-            let names: Vec<&str> = typing.iter().map(|(_, name)| name.as_str()).collect();
+            let names: Vec<&str> = typing.iter().map(|(_, name, _)| name.as_str()).collect();
             match names.as_slice() {
                 [] => String::new(),
+                [one] if typing[0].2 => {
+                    gettext(app.locale, "{} is recording audio…").replace("{}", one)
+                }
                 [one] => gettext(app.locale, "{one} is typing…").replace("{one}", one),
                 [rest @ .., last] => gettext(app.locale, "{} and {last} are typing…")
                     .replace("{last}", last)
                     .replace("{}", &rest.join(", ")),
             }
+        } else if typing[0].2 {
+            gettext(app.locale, "recording audio…").into_owned()
         } else {
             gettext(app.locale, "typing…").into_owned()
         };
@@ -2595,7 +2600,7 @@ fn messages(app: &mut App, ui: &mut egui::Ui, chat: &Chat, under: f32) {
             .map(|message| message.sender.clone())
             .collect();
         // A typing participant may not have a visible message.
-        senders.extend(typing.iter().map(|(id, _)| id.clone()));
+        senders.extend(typing.iter().map(|(id, ..)| id.clone()));
         for sender in senders {
             let picture = app.avatar(&sender);
             avatars.insert(sender, picture);
@@ -3909,7 +3914,7 @@ fn top_of_history(
 }
 
 /// Typing indicator with stacked avatars and animated dots.
-fn typing_bubble(ui: &mut egui::Ui, view: &View<'_>, typers: &[(String, String)]) {
+fn typing_bubble(ui: &mut egui::Ui, view: &View<'_>, typers: &[(String, String, bool)]) {
     let palette = view.palette;
     ui.horizontal(|ui| {
         if shows_sender_pictures(view.chat) {
@@ -3918,7 +3923,7 @@ fn typing_bubble(ui: &mut egui::Ui, view: &View<'_>, typers: &[(String, String)]
             let width = SENDER_AVATAR + step * (count.saturating_sub(1)) as f32;
             let (rect, _) = ui.allocate_exact_size(vec2(width, SENDER_AVATAR), Sense::hover());
             if ui.is_rect_visible(rect) {
-                for (index, (id, name)) in typers.iter().take(count).enumerate() {
+                for (index, (id, name, _)) in typers.iter().take(count).enumerate() {
                     let avatar = Rect::from_min_size(
                         rect.min + vec2(step * index as f32, 0.0),
                         Vec2::splat(SENDER_AVATAR),
@@ -11586,6 +11591,41 @@ mod tests {
         };
         assert!(offers("pregnant", "🤰"));
         assert!(offers("thumbsup", "👍"));
+    }
+
+    /// A contact recording a voice note shows as recording audio, not typing.
+    #[test]
+    fn recording_a_voice_note_is_not_shown_as_typing() {
+        let directory = tempfile::tempdir().unwrap();
+        let (mut app, _) = App::headless(
+            crate::paths::AppDirs::under(directory.path()),
+            crate::settings::Settings::default(),
+        );
+        app.locale = crate::i18n::Locale::PortugueseBrazil;
+        let direct = Chat::new("5511999999999@s.whatsapp.net".into(), "Ada".into());
+        let group = Chat::new("123-456@g.us".into(), "Grupo".into());
+        for (recording, direct_text, group_text) in [
+            (false, "digitando…", "Ada está digitando…"),
+            (true, "gravando áudio…", "Ada está gravando áudio…"),
+        ] {
+            for chat in [&direct, &group] {
+                app.typing.insert(
+                    chat.id.clone(),
+                    vec![(direct.id.clone(), std::time::Instant::now(), recording)],
+                );
+            }
+            app.contacts.insert(
+                direct.id.clone(),
+                crate::model::Contact {
+                    id: direct.id.clone(),
+                    full_name: Some("Ada".into()),
+                    first_name: None,
+                    push_name: None,
+                },
+            );
+            assert_eq!(subtitle(&app, &direct).0, direct_text);
+            assert_eq!(subtitle(&app, &group).0, group_text);
+        }
     }
 }
 
