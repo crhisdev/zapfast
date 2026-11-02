@@ -553,6 +553,15 @@ msgstr "{} está digitando…"
 msgid "typing…"
 msgstr "digitando…"
 
+#: src/ui/chats.rs src/ui/conversation.rs
+msgid "recording audio…"
+msgstr "gravando áudio…"
+
+#: src/ui/chats.rs src/ui/conversation.rs
+#, rust-format
+msgid "{} is recording audio…"
+msgstr "{} está gravando áudio…"
+
 #: src/ui/chats.rs:1633
 msgid "Draft:"
 msgstr "Rascunho:"

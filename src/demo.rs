@@ -964,7 +964,11 @@ pub fn populate(app: &mut App) {
     }
     app.typing.insert(
         SAMPLES[1].id.to_owned(),
-        vec![(group_members[1].0.to_owned(), std::time::Instant::now())],
+        vec![(
+            group_members[1].0.to_owned(),
+            std::time::Instant::now(),
+            false,
+        )],
     );
     app.presence.insert(
         ada.to_owned(),
@@ -3488,10 +3492,12 @@ pub fn apply_flags(app: &mut App, page: Option<&str>) {
                         (
                             "491702222222@s.whatsapp.net".to_owned(),
                             std::time::Instant::now(),
+                            false,
                         ),
                         (
                             "491703333333@s.whatsapp.net".to_owned(),
                             std::time::Instant::now(),
+                            false,
                         ),
                     ],
                 );
@@ -15497,6 +15503,7 @@ mod tests {
             vec![(
                 chat.clone(),
                 std::time::Instant::now() + std::time::Duration::from_secs(3600),
+                false,
             )],
         );
         render(&mut app, &ctx);

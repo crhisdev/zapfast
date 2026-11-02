@@ -3751,11 +3751,11 @@ impl Worker {
                 self.emit(Event::Typing {
                     chat: self.canonical(&presence.source.chat),
                     sender: self.canonical(&presence.source.sender),
-                    // Recording a voice note also shows as typing, as before.
                     composing: matches!(
                         presence.state,
                         ChatActivity::Typing | ChatActivity::RecordingAudio
                     ),
+                    recording: presence.state == ChatActivity::RecordingAudio,
                 });
             }
             E::Presence(presence) => {
@@ -5540,7 +5540,13 @@ impl Worker {
                         );
                     }
                 }
+                let batch = self.archive.begin_batch();
                 let filed = self.apply_history(parsed, !on_demand);
+                if batch.is_ok()
+                    && let Err(error) = self.archive.end_batch()
+                {
+                    log::warn!("could not commit a history chunk: {error}");
+                }
                 if on_demand {
                     self.answer_older(filed, session.as_deref());
                 }

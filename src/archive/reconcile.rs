@@ -1,6 +1,8 @@
 //! Message metadata follows a chat's privacy id into its phone-number chat.
 
-use rusqlite::{Transaction, params};
+use rusqlite::params;
+
+use super::Tx;
 
 use super::{Archive, Result};
 
@@ -10,7 +12,7 @@ impl Archive {
     /// A missing target is allowed only when its source message is also absent
     /// (metadata may arrive first), never when a removal excluded the source.
     pub(super) fn move_message_metadata(
-        transaction: &Transaction<'_>,
+        transaction: &Tx<'_>,
         source: &str,
         target: &str,
     ) -> Result<()> {
